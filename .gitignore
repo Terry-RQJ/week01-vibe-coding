@@ -1,0 +1,21 @@
+# ===== 环境变量与密钥（重要：绝不上传）=====
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# ===== 依赖目录 =====
+node_modules/
+vendor/
+
+# ===== 构建产物 =====
+dist/
+build/
+*.log
+
+# ===== 系统与编辑器 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
