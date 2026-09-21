@@ -1,0 +1,49 @@
+/* tokens.css — 全站设计变量（对齐 PRD §5.2）
+ * 修改这些值即可换肤；所有页面都引用此文件。
+ */
+:root {
+  /* 主色（PRD §5.2）*/
+  --color-primary: #1E40AF;          /* 稳重蓝 */
+  --color-primary-dark: #1E3A8A;
+  --color-accent: #EA580C;           /* 暖橙（警示句） */
+  --color-bg: #F9FAFB;               /* 浅灰背景 */
+  --color-fg: #111827;               /* 主要文字 */
+  --color-fg-soft: #4B5563;          /* 副文字 */
+  --color-border: #E5E7EB;
+  --color-card: #FFFFFF;
+  --color-warn-bg: #FEF3C7;
+  --color-warn-fg: #92400E;
+
+  /* 字号（PRD §5.2 正文 16px 起，标题 ≤ 24px，移动端行高 ≥ 1.6）*/
+  --font-size-base: 16px;
+  --font-size-sm: 14px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+
+  /* 间距 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* 圆角与阴影 */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+
+  /* 字体族（PRD §5.2：思源黑体 / 系统默认无衬线；法条用等宽）*/
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC",
+               "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+  --font-mono: "SF Mono", "Source Code Pro", Consolas, "Courier New", monospace;
+
+  /* 最小可点击区域（PRD §5.2：移动端 ≥ 44×44px 手指友好）*/
+  --tap-min: 44px;
+}

@@ -3,98 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的网站 · 建设中</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-                   "PingFang SC", "Microsoft YaHei", sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      padding: 24px;
-    }
-
-    .card {
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 20px;
-      padding: 48px 40px;
-      max-width: 560px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-    }
-
-    .badge {
-      display: inline-block;
-      font-size: 13px;
-      letter-spacing: 1px;
-      padding: 6px 16px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.2);
-      margin-bottom: 24px;
-    }
-
-    h1 {
-      font-size: 30px;
-      line-height: 1.4;
-      margin-bottom: 16px;
-    }
-
-    p {
-      font-size: 15px;
-      line-height: 1.9;
-      opacity: 0.9;
-      margin-bottom: 12px;
-    }
-
-    .steps {
-      margin-top: 28px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-      font-size: 14px;
-      text-align: left;
-      opacity: 0.85;
-    }
-
-    .steps li {
-      list-style: none;
-      padding: 7px 0;
-    }
-
-    .steps li::before {
-      content: "✓";
-      margin-right: 10px;
-      font-weight: bold;
-    }
-
-    footer {
-      margin-top: 28px;
-      font-size: 13px;
-      opacity: 0.7;
-    }
-  </style>
+  <meta name="description" content="法律小科普轻站：让一个普通人 3 分钟读懂一个生活里的法律常识。AI 起草 + 律师复核，仅供学习参考，不构成具体法律咨询。">
+  <meta name="theme-color" content="#1E40AF">
+  <title>法律小科普轻站 · 让生活里的小事 3 分钟读懂</title>
+  <link rel="stylesheet" href="./css/tokens.css">
+  <link rel="stylesheet" href="./css/global.css">
 </head>
 <body>
-  <main class="card">
-    <div class="badge">DAY 2 · 占位页</div>
-    <h1>网站正在建设中 🚧</h1>
-    <p>这是项目的第一版占位页，用来验证代码已经成功上传到 GitHub。</p>
-    <p>真正的功能会在后面几天逐步加上来。</p>
+  <header class="site-header">
+    <div class="container">
+      <a href="./index.html" class="brand" aria-label="法律小科普轻站 回到首页">⚖️ 法律小科普轻站</a>
+      <div class="search-box" role="search">
+        <input type="search" placeholder="试试搜『押金』『劝退』『借条』…" aria-label="搜索卡片" disabled>
+        <span class="hint" aria-label="Day 10 上线">Day 10 上线</span>
+      </div>
+      <a href="./index.html" aria-label="首页" style="font-size: var(--font-size-sm); color: var(--color-fg-soft);">首页</a>
+    </div>
+  </header>
 
-    <ul class="steps">
-      <li>本地项目初始化完成</li>
-      <li>首个 HTML 文件已创建</li>
-      <li>忽略规则已配置（密钥文件不会上传）</li>
-    </ul>
+  <main>
+    <div class="container">
 
-    <footer>第一周 · 第 2 天</footer>
+      <section class="hero">
+        <h1>让生活里的小事，3 分钟读懂</h1>
+        <p>假设你刚收到公司发来的「劝退」短信，或者假设你下班路上被电动车撞了——这里会告诉你，第一步该做什么、相关法条是什么、有哪些坑千万别踩。</p>
+      </section>
+
+      <section class="categories" aria-labelledby="cat-h">
+        <h2 id="cat-h" class="section-title">分情形浏览</h2>
+        <ul class="category-list">
+          <li><span class="chip">劳动类</span></li>
+          <li><span class="chip">消费类</span></li>
+          <li><span class="chip">借贷类</span></li>
+          <li><span class="chip">婚姻家庭类</span></li>
+          <li><span class="chip">交通类</span></li>
+          <li><span class="chip">邻里 / 名誉类</span></li>
+        </ul>
+      </section>
+
+      <section class="card-grid" aria-labelledby="card-h">
+        <h2 id="card-h" class="section-title" style="grid-column: 1 / -1;">最新情形</h2>
+        <div class="empty-state" role="status">
+          <div class="badge">Day 8 上线</div>
+          <p>第 1 张卡片（公司劝退）将于 Day 8 上线</p>
+          <p style="margin-top: var(--space-3); font-size: var(--font-size-sm);">Step 2 起滚动补充第 2、3、4…张 · 详见 README 「后续计划」</p>
+        </div>
+      </section>
+
+    </div>
   </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>
+        <strong>免责声明 ·</strong>
+        本站内容由 <strong>AI 起草 + 律师人工复核</strong>，仅供学习参考，
+        <strong>不构成具体法律咨询</strong>。您的具体问题请咨询执业律师，或拨打免费法律服务热线 <strong>12348</strong>。
+      </div>
+      <div>
+        <strong>紧急情况 ·</strong>
+        人身安全事件请立即拨打 <strong>110</strong>。
+      </div>
+      <div class="meta">
+        本站为个人学习项目 · Day 7 首页骨架 · 2026-09-21 · 最后核验 2026-09-21
+      </div>
+    </div>
+  </footer>
+
+  <noscript>
+    <div style="padding: 16px; background: var(--color-warn-bg); color: var(--color-warn-fg); text-align: center;">
+      本站依赖 JavaScript 才能正常使用搜索、收藏与详情页（Day 10 起启用）。
+    </div>
+  </noscript>
 </body>
 </html>
