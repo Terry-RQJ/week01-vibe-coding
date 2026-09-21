@@ -14,6 +14,13 @@
   --color-warn-bg: #FEF3C7;
   --color-warn-fg: #92400E;
 
+  /* 国风点缀色（Day 7 视觉微调新增；PRD §5.2 三色不动）*/
+  --color-ink-red: #C8102E;          /* 朱红：印章 / 强调 hover */
+  --color-gold-warm: #D4A24C;        /* 暖金：副标题 / 装饰线 / 题字感 */
+  --color-bamboo: #4A7C59;           /* 竹绿：分类标签点缀 */
+  --color-paper-cream: #FBF7EE;      /* 米黄宣纸：第二背景 / 卡片柔和底 */
+  --color-ink-gray: #374151;         /* 淡墨：装饰线条（替代纯黑）*/
+
   /* 字号（PRD §5.2 正文 16px 起，标题 ≤ 24px，移动端行高 ≥ 1.6）*/
   --font-size-base: 16px;
   --font-size-sm: 14px;
@@ -32,12 +39,13 @@
   --space-7: 48px;
   --space-8: 64px;
 
-  /* 圆角与阴影 */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  /* 圆角与阴影（Day 7 调：圆角更圆润、阴影改暖橙调 = 活泼的物理来源）*/
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 2px 6px rgba(234, 88, 12, 0.08);    /* 微暖橙 */
+  --shadow-md: 0 6px 20px rgba(234, 88, 12, 0.12);   /* 暖橙明显 */
+  --shadow-panda: 0 8px 24px rgba(30, 64, 175, 0.18); /* hero 吉祥物专属冷阴影 */
 
   /* 字体族（PRD §5.2：思源黑体 / 系统默认无衬线；法条用等宽）*/
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC",
