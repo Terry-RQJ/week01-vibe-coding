@@ -20,6 +20,7 @@
   --color-bamboo: #4A7C59;           /* 竹绿：分类标签点缀 */
   --color-paper-cream: #FBF7EE;      /* 米黄宣纸：第二背景 / 卡片柔和底 */
   --color-ink-gray: #374151;         /* 淡墨：装饰线条（替代纯黑）*/
+  --color-amethyst: #7C3AED;         /* 紫：邻里 / 名誉类 */
 
   /* 字号（PRD §5.2 正文 16px 起，标题 ≤ 24px，移动端行高 ≥ 1.6）*/
   --font-size-base: 16px;
