@@ -221,12 +221,12 @@ a:hover { text-decoration: underline; }
   cursor: default;
 }
 /* 6 类分类色（活泼感的物理来源，整站立刻活起来）*/
-.chip-labor    { background: rgba(30, 64, 175, 0.10); color: var(--color-primary);     border-color: rgba(30, 64, 175, 0.25); }
-.chip-consume  { background: rgba(234, 88, 12, 0.10);  color: var(--color-accent);      border-color: rgba(234, 88, 12, 0.25); }
-.chip-loan     { background: rgba(212, 162, 76, 0.18); color: #B07D2F;                   border-color: rgba(212, 162, 76, 0.40); }
-.chip-marriage { background: rgba(200, 16, 46, 0.10);  color: var(--color-ink-red);     border-color: rgba(200, 16, 46, 0.25); }
-.chip-traffic  { background: rgba(74, 124, 89, 0.12);  color: var(--color-bamboo);      border-color: rgba(74, 124, 89, 0.30); }
-.chip-neighbor { background: rgba(124, 58, 237, 0.10); color: var(--color-amethyst);    border-color: rgba(124, 58, 237, 0.30); }
+.chip-labor    { background: rgba(30, 64, 175, 0.22); color: #1E3A8A;                   border-color: rgba(30, 64, 175, 0.50); font-weight: 600; }
+.chip-consume  { background: rgba(234, 88, 12, 0.20); color: #B23E05;                   border-color: rgba(234, 88, 12, 0.50); font-weight: 600; }
+.chip-loan     { background: rgba(212, 162, 76, 0.32); color: #8A5E1C;                  border-color: rgba(212, 162, 76, 0.65); font-weight: 600; }
+.chip-marriage { background: rgba(200, 16, 46, 0.18); color: #9C0D26;                   border-color: rgba(200, 16, 46, 0.50); font-weight: 600; }
+.chip-traffic  { background: rgba(74, 124, 89, 0.26); color: #33593F;                   border-color: rgba(74, 124, 89, 0.55); font-weight: 600; }
+.chip-neighbor { background: rgba(124, 58, 237, 0.18); color: #5B21B6;                  border-color: rgba(124, 58, 237, 0.50); font-weight: 600; }
 
 /* ========== 卡片网格 ========== */
 .card-grid {
