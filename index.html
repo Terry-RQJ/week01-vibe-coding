@@ -4,36 +4,70 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="法律小科普轻站：让一个普通人 3 分钟读懂一个生活里的法律常识。AI 起草 + 律师复核，仅供学习参考，不构成具体法律咨询。">
-  <meta name="theme-color" content="#2F5238">
+  <meta name="theme-color" content="#1B3524">
   <title>法律小科普轻站 · 让生活里的小事 3 分钟读懂</title>
   <link rel="stylesheet" href="./css/tokens.css">
   <link rel="stylesheet" href="./css/global.css">
 </head>
 <body>
-  <!-- 竹林装饰：两侧竹竿（fixed，不挡点击，手机端隐藏）-->
+  <!-- 竹林装饰：两侧真实质感竹竿（圆柱渐变+竹节+竹叶，fixed，不挡点击，手机端隐藏）-->
   <svg class="bamboo-deco left" viewBox="0 0 72 800" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
-    <rect x="20" y="-20" width="14" height="840" rx="7" fill="#7FA88B" opacity="0.7"/>
-    <rect x="20" y="90"  width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="240" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="400" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="560" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <path d="M 34 60 Q 58 48 70 54 Q 56 66 34 62 Z" fill="#4A7C59" opacity="0.8"/>
-    <path d="M 34 250 Q 6 236 0 244 Q 14 258 34 252 Z" fill="#4A7C59" opacity="0.7"/>
-    <path d="M 34 430 Q 58 418 70 424 Q 56 438 34 432 Z" fill="#7FA88B" opacity="0.7"/>
-    <path d="M 34 640 Q 6 626 0 634 Q 14 648 34 642 Z" fill="#7FA88B" opacity="0.6"/>
-    <rect x="48" y="-20" width="9" height="840" rx="4.5" fill="#A9C5AF" opacity="0.45"/>
+    <defs>
+      <linearGradient id="bdL1" x1="0" x2="1">
+        <stop offset="0" stop-color="#8FBF9B"/>
+        <stop offset="0.45" stop-color="#4A8A5C"/>
+        <stop offset="1" stop-color="#245C3B"/>
+      </linearGradient>
+      <linearGradient id="bdL2" x1="0" x2="1">
+        <stop offset="0" stop-color="#A9CBAF"/>
+        <stop offset="0.5" stop-color="#6FA985"/>
+        <stop offset="1" stop-color="#4A8A5C"/>
+      </linearGradient>
+    </defs>
+    <!-- 后竿（浅色虚化，做层次）-->
+    <rect x="46" y="-20" width="10" height="840" rx="5" fill="url(#bdL2)" opacity="0.55"/>
+    <!-- 主竿（圆柱明暗渐变 = 立体感）-->
+    <rect x="16" y="-20" width="17" height="840" rx="8.5" fill="url(#bdL1)"/>
+    <!-- 竹节 -->
+    <g fill="#1D4730" opacity="0.85">
+      <rect x="16" y="92" width="17" height="5"/>
+      <rect x="16" y="252" width="17" height="5"/>
+      <rect x="16" y="412" width="17" height="5"/>
+      <rect x="16" y="572" width="17" height="5"/>
+    </g>
+    <!-- 竹叶丛 -->
+    <path d="M33 96 C 48 76 76 72 96 84 C 70 90 46 98 33 96 Z" fill="#3E7350"/>
+    <path d="M33 96 C 46 114 72 120 90 110 C 68 102 46 92 33 96 Z" fill="#356B47"/>
+    <path d="M33 416 C 46 432 70 436 86 426 C 66 420 46 410 33 416 Z" fill="#4A8A5C"/>
+    <path d="M33 576 C 46 560 72 556 90 566 C 68 572 46 580 33 576 Z" fill="#356B47"/>
+    <path d="M56 680 C 68 668 88 666 100 674 C 82 678 66 684 56 680 Z" fill="#4A8A5C" opacity="0.7"/>
   </svg>
   <svg class="bamboo-deco right" viewBox="0 0 72 800" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
-    <rect x="20" y="-20" width="14" height="840" rx="7" fill="#7FA88B" opacity="0.7"/>
-    <rect x="20" y="90"  width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="240" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="400" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <rect x="20" y="560" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
-    <path d="M 34 60 Q 58 48 70 54 Q 56 66 34 62 Z" fill="#4A7C59" opacity="0.8"/>
-    <path d="M 34 250 Q 6 236 0 244 Q 14 258 34 252 Z" fill="#4A7C59" opacity="0.7"/>
-    <path d="M 34 430 Q 58 418 70 424 Q 56 438 34 432 Z" fill="#7FA88B" opacity="0.7"/>
-    <path d="M 34 640 Q 6 626 0 634 Q 14 648 34 642 Z" fill="#7FA88B" opacity="0.6"/>
-    <rect x="48" y="-20" width="9" height="840" rx="4.5" fill="#A9C5AF" opacity="0.45"/>
+    <defs>
+      <linearGradient id="bdR1" x1="0" x2="1">
+        <stop offset="0" stop-color="#8FBF9B"/>
+        <stop offset="0.45" stop-color="#4A8A5C"/>
+        <stop offset="1" stop-color="#245C3B"/>
+      </linearGradient>
+      <linearGradient id="bdR2" x1="0" x2="1">
+        <stop offset="0" stop-color="#A9CBAF"/>
+        <stop offset="0.5" stop-color="#6FA985"/>
+        <stop offset="1" stop-color="#4A8A5C"/>
+      </linearGradient>
+    </defs>
+    <rect x="46" y="-20" width="10" height="840" rx="5" fill="url(#bdR2)" opacity="0.55"/>
+    <rect x="16" y="-20" width="17" height="840" rx="8.5" fill="url(#bdR1)"/>
+    <g fill="#1D4730" opacity="0.85">
+      <rect x="16" y="92" width="17" height="5"/>
+      <rect x="16" y="252" width="17" height="5"/>
+      <rect x="16" y="412" width="17" height="5"/>
+      <rect x="16" y="572" width="17" height="5"/>
+    </g>
+    <path d="M33 96 C 48 76 76 72 96 84 C 70 90 46 98 33 96 Z" fill="#3E7350"/>
+    <path d="M33 96 C 46 114 72 120 90 110 C 68 102 46 92 33 96 Z" fill="#356B47"/>
+    <path d="M33 416 C 46 432 70 436 86 426 C 66 420 46 410 33 416 Z" fill="#4A8A5C"/>
+    <path d="M33 576 C 46 560 72 556 90 566 C 68 572 46 580 33 576 Z" fill="#356B47"/>
+    <path d="M56 680 C 68 668 88 666 100 674 C 82 678 66 684 56 680 Z" fill="#4A8A5C" opacity="0.7"/>
   </svg>
 
   <header class="site-header">
@@ -51,16 +85,89 @@
     <div class="container">
 
       <section class="hero">
-        <!-- 竹叶丛装饰（右上 + 左下，深绿底上浅竹色叶片） -->
-        <svg class="hero-deco-leaf" viewBox="0 0 120 80" aria-hidden="true">
-          <path d="M8 74 Q 26 52 56 54 Q 34 68 10 78 Z" fill="#7FA88B" opacity="0.55"/>
-          <path d="M14 72 Q 44 38 84 44 Q 50 56 18 76 Z" fill="#A9C5AF" opacity="0.38"/>
-          <path d="M22 70 Q 62 22 110 32 Q 68 44 26 74 Z" fill="#7FA88B" opacity="0.26"/>
-        </svg>
-        <svg class="hero-deco-leaf" viewBox="0 0 120 80" aria-hidden="true">
-          <path d="M8 74 Q 26 52 56 54 Q 34 68 10 78 Z" fill="#7FA88B" opacity="0.50"/>
-          <path d="M14 72 Q 44 38 84 44 Q 50 56 18 76 Z" fill="#A9C5AF" opacity="0.34"/>
-          <path d="M22 70 Q 62 22 110 32 Q 68 44 26 74 Z" fill="#7FA88B" opacity="0.22"/>
+        <!-- 多层竹林场景：远景雾竹（0.32）→ 中景竹丛（0.62）→ 近景粗竹（1.0）→ 底部雾影 -->
+        <svg class="hero-forest" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="hfNear" x1="0" x2="1">
+              <stop offset="0" stop-color="#66A87A"/>
+              <stop offset="0.42" stop-color="#2E6B45"/>
+              <stop offset="1" stop-color="#173826"/>
+            </linearGradient>
+            <linearGradient id="hfMid" x1="0" x2="1">
+              <stop offset="0" stop-color="#7FB98E"/>
+              <stop offset="0.45" stop-color="#417A55"/>
+              <stop offset="1" stop-color="#2A5239"/>
+            </linearGradient>
+            <linearGradient id="hfFar" x1="0" x2="1">
+              <stop offset="0" stop-color="#8CC49A"/>
+              <stop offset="0.5" stop-color="#639B74"/>
+              <stop offset="1" stop-color="#4E8560"/>
+            </linearGradient>
+            <linearGradient id="hfMist" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0.55" stop-color="#0B2114" stop-opacity="0"/>
+              <stop offset="1" stop-color="#0B2114" stop-opacity="0.55"/>
+            </linearGradient>
+          </defs>
+
+          <!-- 远景：雾化竹丛（左上） -->
+          <g opacity="0.32">
+            <rect x="96" y="-20" width="9" height="500" rx="4.5" fill="url(#hfFar)"/>
+            <rect x="130" y="-20" width="7" height="500" rx="3.5" fill="url(#hfFar)" opacity="0.8"/>
+            <rect x="152" y="-20" width="10" height="500" rx="5" fill="url(#hfFar)"/>
+            <rect x="190" y="-20" width="8" height="500" rx="4" fill="url(#hfFar)" opacity="0.75"/>
+            <path d="M105 90 C 118 74 142 70 160 80 C 138 86 116 92 105 90 Z" fill="#5E9470"/>
+            <path d="M162 200 C 150 186 128 184 114 194 C 134 198 152 202 162 200 Z" fill="#6FA985"/>
+            <path d="M144 330 C 158 314 182 312 198 322 C 176 328 154 332 144 330 Z" fill="#5E9470"/>
+          </g>
+
+          <!-- 中景：左右竹丛（竹节 + 披针竹叶） -->
+          <g opacity="0.62">
+            <rect x="34" y="-20" width="15" height="500" rx="7.5" fill="url(#hfMid)"/>
+            <rect x="60" y="-20" width="11" height="500" rx="5.5" fill="url(#hfMid)" opacity="0.85"/>
+            <rect x="942" y="-20" width="13" height="500" rx="6.5" fill="url(#hfMid)"/>
+            <rect x="972" y="-20" width="16" height="500" rx="8" fill="url(#hfMid)"/>
+            <g fill="#1D4730" opacity="0.85">
+              <rect x="34" y="80" width="15" height="4"/>
+              <rect x="34" y="190" width="15" height="4"/>
+              <rect x="34" y="300" width="15" height="4"/>
+              <rect x="34" y="410" width="15" height="4"/>
+              <rect x="972" y="60" width="16" height="4"/>
+              <rect x="972" y="170" width="16" height="4"/>
+              <rect x="972" y="280" width="16" height="4"/>
+              <rect x="972" y="390" width="16" height="4"/>
+            </g>
+            <path transform="translate(49 88)" d="M0 0 C 16 -22 44 -28 66 -16 C 40 -8 18 4 0 0 Z" fill="#3E7350"/>
+            <path transform="translate(49 88)" d="M0 0 C 14 20 38 28 58 18 C 36 10 14 -2 0 0 Z" fill="#356B47"/>
+            <path transform="translate(49 298)" d="M0 0 C -14 -20 -42 -26 -62 -14 C -38 -6 -16 4 0 0 Z" fill="#3E7350"/>
+            <path transform="translate(988 58)" d="M0 0 C -16 -22 -44 -28 -66 -16 C -40 -8 -18 4 0 0 Z" fill="#3E7350"/>
+            <path transform="translate(988 58)" d="M0 0 C -14 20 -38 28 -58 18 C -36 10 -14 -2 0 0 Z" fill="#356B47"/>
+            <path transform="translate(988 278)" d="M0 0 C -14 -18 -40 -24 -60 -12 C -38 -6 -16 4 0 0 Z" fill="#3E7350"/>
+          </g>
+
+          <!-- 近景：贴边粗竹（最浓最实） -->
+          <g>
+            <rect x="1128" y="-20" width="24" height="500" rx="12" fill="url(#hfNear)"/>
+            <rect x="1096" y="-20" width="14" height="500" rx="7" fill="url(#hfNear)" opacity="0.9"/>
+            <rect x="8" y="-20" width="12" height="500" rx="6" fill="url(#hfNear)" opacity="0.9"/>
+            <g fill="#122E1F" opacity="0.9">
+              <rect x="1128" y="64" width="24" height="6"/>
+              <rect x="1128" y="176" width="24" height="6"/>
+              <rect x="1128" y="288" width="24" height="6"/>
+              <rect x="1128" y="400" width="24" height="6"/>
+              <rect x="1096" y="110" width="14" height="5"/>
+              <rect x="1096" y="250" width="14" height="5"/>
+              <rect x="8" y="120" width="12" height="5"/>
+              <rect x="8" y="260" width="12" height="5"/>
+            </g>
+            <path transform="translate(1128 70)" d="M0 0 C -18 -26 -50 -32 -76 -18 C -46 -10 -20 6 0 0 Z" fill="#2E6B45"/>
+            <path transform="translate(1128 70)" d="M0 0 C -16 22 -44 32 -66 20 C -42 12 -18 -4 0 0 Z" fill="#245C3B"/>
+            <path transform="translate(1128 294)" d="M0 0 C -18 -24 -48 -28 -72 -14 C -44 -8 -20 6 0 0 Z" fill="#2E6B45"/>
+            <path transform="translate(20 126)" d="M0 0 C 16 -24 46 -30 68 -16 C 40 -8 18 6 0 0 Z" fill="#2E6B45"/>
+            <path transform="translate(20 266)" d="M0 0 C 14 20 40 28 60 16 C 36 8 14 -4 0 0 Z" fill="#245C3B"/>
+          </g>
+
+          <!-- 底部雾影：压出纵深 -->
+          <rect x="0" y="0" width="1200" height="460" fill="url(#hfMist)"/>
         </svg>
         <div class="hero-inner">
           <div class="hero-text">

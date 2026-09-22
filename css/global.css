@@ -9,8 +9,8 @@ html { font-size: var(--font-size-base); }
 
 body {
   font-family: var(--font-sans);
-  /* Day 8：竹林底色——极浅竹渐变，替代灰白 */
-  background: linear-gradient(180deg, var(--bamboo-pale) 0%, #F6F9F4 40%, var(--bamboo-pale) 100%);
+  /* Day 9 迭代：底色加浓——更饱和的竹青渐变 */
+  background: linear-gradient(180deg, #DCE9D8 0%, #F0F6EC 38%, #E2EEE0 100%);
   color: var(--color-fg);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -22,15 +22,15 @@ body {
   position: fixed;
   top: 0;
   height: 100vh;
-  width: 72px;
+  width: 76px;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.8;
 }
 .bamboo-deco.left  { left: 0; }
 .bamboo-deco.right { right: 0; transform: scaleX(-1); }
 @media (max-width: 900px) {
-  .bamboo-deco { width: 44px; opacity: 0.35; }
+  .bamboo-deco { width: 48px; opacity: 0.5; }
 }
 @media (max-width: 640px) {
   .bamboo-deco { display: none; }   /* 手机宽度不占横向空间（PRD：不横向溢出）*/
@@ -54,9 +54,9 @@ a:hover { text-decoration: underline; }
 
 /* ========== 站点 header ========== */
 .site-header {
-  background: var(--bamboo-dark);
+  background: #1B3524;
   border-bottom: 0;
-  box-shadow: 0 2px 12px rgba(47, 82, 56, 0.28);
+  box-shadow: 0 2px 16px rgba(12, 32, 20, 0.45);
   position: sticky; top: 0; z-index: 10;
 }
 .site-header .container {
@@ -109,20 +109,32 @@ a:hover { text-decoration: underline; }
 
 /* ========== 主区 hero ========== */
 .hero {
-  padding: var(--space-7) 0 var(--space-5);
+  padding: var(--space-8) 0 var(--space-6);
   position: relative;
   overflow: hidden;
-  /* Day 9：深墨竹绿大色块——竹林深处的探索感 */
-  background: linear-gradient(135deg, #24422D 0%, #2F5238 45%, #3A6649 100%);
+  /* Day 9 迭代：更浓烈的竹林深处——径向天光 + 深墨竹绿斜向渐变 */
+  background:
+    radial-gradient(ellipse 55% 70% at 70% 38%, rgba(126, 198, 145, 0.28) 0%, rgba(126, 198, 145, 0) 62%),
+    linear-gradient(155deg, #0F2C1D 0%, #1C4429 42%, #2E6B45 100%);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   border-bottom: 0;
+  box-shadow: inset 0 -32px 64px rgba(9, 26, 17, 0.5), 0 10px 30px rgba(15, 44, 29, 0.35);
+}
+/* 多层竹林场景（HTML 内联 SVG，远景/中景/近景/雾影）*/
+.hero-forest {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 .hero-inner {
   display: flex;
   align-items: center;
   gap: var(--space-6);
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 .hero-text { flex: 1; min-width: 0; }
 /* 标题下的暖金→朱红渐变短横线（题字感，加粗更醒目）*/
@@ -150,7 +162,7 @@ a:hover { text-decoration: underline; }
   width: 210px;
   height: auto;
   flex-shrink: 0;
-  filter: drop-shadow(0 8px 24px rgba(47, 82, 56, 0.25));
+  filter: drop-shadow(0 12px 28px rgba(6, 20, 12, 0.55));
   animation: panda-float 4s ease-in-out infinite;
 }
 @keyframes panda-float {
@@ -161,7 +173,6 @@ a:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column; align-items: flex-start; }
   .hero-panda { width: 140px; align-self: center; margin-top: var(--space-4); }
-  .hero-deco-leaf { display: none; }
   /* Day 8 修复：375px 宽下标题降级，保证不横向溢出（PRD §8.4）*/
   .hero h1 { font-size: var(--font-size-2xl); }
   .hero p { font-size: var(--font-size-base); }
@@ -169,16 +180,8 @@ a:hover { text-decoration: underline; }
   .site-header .container { flex-wrap: wrap; }
   .search-box { order: 3; flex-basis: 100%; }
 }
-/* 竹叶丛装饰（hero 角落，Day 9：替代祥云，强化竹林感） */
-.hero-deco-leaf {
-  position: absolute;
-  width: 130px;
-  height: 87px;
-  z-index: 0;
-  pointer-events: none;
-}
-.hero-deco-leaf:nth-of-type(1) { top: 18px; right: 10%; }
-.hero-deco-leaf:nth-of-type(2) { bottom: 14px; left: 5%; transform: scaleX(-1); }
+/* 竹叶丛装饰（hero 角落，Day 9：替代祥云，强化竹林感）
+   —— Day 9 迭代：升级为整幅 .hero-forest 多层竹林场景，此规则已移除 */
 
 /* ========== 分类区 ========== */
 .categories { padding: var(--space-5) 0 var(--space-3); }
@@ -186,16 +189,16 @@ a:hover { text-decoration: underline; }
   font-size: var(--font-size-xl);
   font-weight: 700;
   margin-bottom: var(--space-4);
-  color: var(--bamboo-dark);
+  color: #22452E;
 }
-/* Day 8：标题前竹节点缀 */
+/* Day 8：标题前竹节点缀（Day 9 迭代：渐变竹节，立体感）*/
 .section-title::before {
   content: "";
   display: inline-block;
   width: 8px;
   height: 20px;
   border-radius: 4px;
-  background: var(--color-bamboo);
+  background: linear-gradient(180deg, #4A8A5C, #2C5A3D);
   margin-right: var(--space-2);
   vertical-align: -3px;
 }
@@ -240,7 +243,7 @@ a:hover { text-decoration: underline; }
   gap: var(--space-4);
   padding: var(--space-4) 0 var(--space-7);
 }
-/* 卡片：暖橙阴影 + 圆角 14 + 鼠标悬停抬起 + 暖金阴影升级 */
+/* 卡片：圆角 14 + 鼠标悬停抬起 + 深竹绿描边（Day 9 迭代加浓）*/
 .card {
   background: var(--color-card);
   border-radius: var(--radius-md);
@@ -249,25 +252,25 @@ a:hover { text-decoration: underline; }
   transition: transform .2s ease, box-shadow .2s ease;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(74, 124, 89, 0.14);
+  border: 1px solid rgba(44, 90, 61, 0.28);
 }
-/* Day 8：卡片顶部竹青条（信息层级 + 竹林感）*/
+/* Day 8：卡片顶部竹青条（信息层级 + 竹林感，Day 9 迭代：更浓的竹色）*/
 .card::before {
   content: "";
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 5px;
-  background: linear-gradient(90deg, var(--color-bamboo), var(--bamboo-mid) 60%, var(--color-gold-warm));
+  background: linear-gradient(90deg, #2C5A3D, #4A8A5C 60%, var(--color-gold-warm));
 }
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(74, 124, 89, 0.22);
+  box-shadow: 0 10px 26px rgba(24, 58, 37, 0.30);
 }
 .card h3 {
   font-size: var(--font-size-xl);     /* Day 9：18px→20px，拉开与正文的层级 */
   font-weight: 700;
   margin-bottom: var(--space-2);
-  color: var(--bamboo-dark);
+  color: #22452E;
 }
 .card .summary { color: var(--color-fg-soft); margin-bottom: var(--space-3); }
 .card .card-meta {
@@ -376,7 +379,7 @@ a:hover { text-decoration: underline; }
 .site-footer {
   position: relative;
   border-top: 0;                       /* 用 ::before 渐变线替代脏色实线 */
-  background: linear-gradient(to bottom, #2A4C34, #1F3A28);
+  background: linear-gradient(to bottom, #22422D, #12261A);
   margin-top: var(--space-8);
   padding: var(--space-6) 0 var(--space-7);
   color: rgba(245, 249, 242, 0.88);
