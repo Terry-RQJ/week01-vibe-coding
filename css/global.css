@@ -54,8 +54,9 @@ a:hover { text-decoration: underline; }
 
 /* ========== 站点 header ========== */
 .site-header {
-  background: var(--color-card);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--bamboo-dark);
+  border-bottom: 0;
+  box-shadow: 0 2px 12px rgba(47, 82, 56, 0.28);
   position: sticky; top: 0; z-index: 10;
 }
 .site-header .container {
@@ -68,18 +69,24 @@ a:hover { text-decoration: underline; }
 .brand {
   font-size: var(--font-size-lg);
   font-weight: 700;
-  color: var(--bamboo-dark);
+  color: #F5F9F2;
   white-space: nowrap;
 }
-.brand:hover { text-decoration: none; }
+.brand:hover { text-decoration: none; color: var(--color-gold-warm); }
+/* Day 9：header 导航链接（深绿底白字基线对齐）*/
+.nav-link {
+  font-size: var(--font-size-sm);
+  color: rgba(245, 249, 242, 0.85);
+}
+.nav-link:hover { color: #FFFFFF; }
 
 .search-box {
   flex: 1;
   max-width: 360px;
   height: var(--tap-min);
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.30);
   border-radius: var(--radius-md);
-  background: var(--color-bg);
+  background: rgba(255, 255, 255, 0.12);
   padding: 0 var(--space-3);
   display: flex;
   align-items: center;
@@ -90,12 +97,13 @@ a:hover { text-decoration: underline; }
   flex: 1;
   height: 100%;
   border: 0; outline: 0; background: transparent;
-  font: inherit; color: var(--color-fg);
+  font: inherit; color: #F5F9F2;
   min-width: 0;
 }
+.search-box input::placeholder { color: rgba(245, 249, 242, 0.55); }
 .search-box .hint {
   font-size: var(--font-size-sm);
-  color: var(--color-warn-fg);
+  color: var(--color-gold-warm);
   white-space: nowrap;
 }
 
@@ -104,14 +112,10 @@ a:hover { text-decoration: underline; }
   padding: var(--space-7) 0 var(--space-5);
   position: relative;
   overflow: hidden;
-  /* Day 8：竹绿渐变（竹林深处的探索感），保留一缕暖金 */
-  background: linear-gradient(135deg,
-    rgba(74, 124, 89, 0.16) 0%,
-    rgba(127, 168, 139, 0.12) 45%,
-    rgba(220, 232, 220, 0.55) 80%,
-    var(--color-paper-cream) 100%);
+  /* Day 9：深墨竹绿大色块——竹林深处的探索感 */
+  background: linear-gradient(135deg, #24422D 0%, #2F5238 45%, #3A6649 100%);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  border-bottom: 2px solid rgba(74, 124, 89, 0.20);
+  border-bottom: 0;
 }
 .hero-inner {
   display: flex;
@@ -133,12 +137,12 @@ a:hover { text-decoration: underline; }
 .hero h1 {
   font-size: var(--font-size-3xl);
   line-height: 1.3;
-  color: var(--color-fg);
+  color: #FFFFFF;
   margin-bottom: var(--space-3);
 }
 .hero p {
   font-size: var(--font-size-lg);
-  color: var(--color-fg-soft);
+  color: rgba(255, 255, 255, 0.88);
   max-width: 640px;
 }
 /* 熊猫法官吉祥物 */
@@ -157,7 +161,7 @@ a:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column; align-items: flex-start; }
   .hero-panda { width: 140px; align-self: center; margin-top: var(--space-4); }
-  .hero-deco-cloud { display: none; }
+  .hero-deco-leaf { display: none; }
   /* Day 8 修复：375px 宽下标题降级，保证不横向溢出（PRD §8.4）*/
   .hero h1 { font-size: var(--font-size-2xl); }
   .hero p { font-size: var(--font-size-base); }
@@ -165,23 +169,24 @@ a:hover { text-decoration: underline; }
   .site-header .container { flex-wrap: wrap; }
   .search-box { order: 3; flex-basis: 100%; }
 }
-/* 祥云装饰（hero 角落） */
-.hero-deco-cloud {
+/* 竹叶丛装饰（hero 角落，Day 9：替代祥云，强化竹林感） */
+.hero-deco-leaf {
   position: absolute;
-  width: 90px;
-  height: 45px;
+  width: 130px;
+  height: 87px;
   z-index: 0;
   pointer-events: none;
 }
-.hero-deco-cloud:nth-of-type(1) { top: 16px; right: 8%; }
-.hero-deco-cloud:nth-of-type(2) { bottom: 16px; left: 6%; }
+.hero-deco-leaf:nth-of-type(1) { top: 18px; right: 10%; }
+.hero-deco-leaf:nth-of-type(2) { bottom: 14px; left: 5%; transform: scaleX(-1); }
 
 /* ========== 分类区 ========== */
 .categories { padding: var(--space-5) 0 var(--space-3); }
 .section-title {
   font-size: var(--font-size-xl);
+  font-weight: 700;
   margin-bottom: var(--space-4);
-  color: var(--color-fg);
+  color: var(--bamboo-dark);
 }
 /* Day 8：标题前竹节点缀 */
 .section-title::before {
@@ -197,8 +202,7 @@ a:hover { text-decoration: underline; }
 /* 更新时间行（Day 8 要求：顶部标题 + 更新时间）*/
 .updated-line {
   font-size: var(--font-size-sm);
-  color: var(--bamboo-dark);
-  opacity: 0.85;
+  color: rgba(255, 255, 255, 0.80);
   margin-top: var(--space-2);
 }
 .updated-line time { font-weight: 600; }
@@ -260,7 +264,8 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 8px 24px rgba(74, 124, 89, 0.22);
 }
 .card h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);     /* Day 9：18px→20px，拉开与正文的层级 */
+  font-weight: 700;
   margin-bottom: var(--space-2);
   color: var(--bamboo-dark);
 }
@@ -329,6 +334,12 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
 }
 .state-error button:hover { background: var(--bamboo-dark); }
+/* Day 9 修复：键盘焦点可见（无障碍）*/
+.state-error button:focus-visible,
+.state-demo select:focus-visible {
+  outline: 3px solid var(--color-gold-warm);
+  outline-offset: 2px;
+}
 
 /* 状态演示器（DevTools 式切换，方便验收四态）*/
 .state-demo {
@@ -342,7 +353,7 @@ a:hover { text-decoration: underline; }
 .state-demo select {
   font: inherit;
   font-size: var(--font-size-sm);
-  height: 34px;
+  height: var(--tap-min);   /* Day 9 修复：34px→44px，达到 PRD §5.2 触控最小值 */
   border: 1px solid var(--bamboo-mid);
   border-radius: var(--radius-sm);
   background: #fff;
@@ -350,14 +361,25 @@ a:hover { text-decoration: underline; }
   padding: 0 var(--space-2);
 }
 
+/* Day 9：最新情形工具行（从 index.html 内联样式抽出，统一间距）*/
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.toolbar .section-title { margin-bottom: 0; }
+
 /* ========== 站点 footer ========== */
 .site-footer {
   position: relative;
   border-top: 0;                       /* 用 ::before 渐变线替代脏色实线 */
-  background: linear-gradient(to bottom, var(--color-paper-cream), var(--color-card) 35%);
+  background: linear-gradient(to bottom, #2A4C34, #1F3A28);
   margin-top: var(--space-8);
   padding: var(--space-6) 0 var(--space-7);
-  color: var(--color-fg-soft);
+  color: rgba(245, 249, 242, 0.88);
   font-size: var(--font-size-sm);
   line-height: 1.8;
 }
@@ -374,9 +396,10 @@ a:hover { text-decoration: underline; }
     var(--color-gold-warm) 80%,
     transparent 100%);
 }
-.site-footer strong { color: var(--color-fg); }
+.site-footer strong { color: #FFFFFF; }
 .site-footer .container > div + div { margin-top: var(--space-2); }
-.site-footer .meta { opacity: .6; margin-top: var(--space-4) !important; }
+/* Day 9 修复：opacity .6（对比度约 3.2:1，不达 WCAG AA）提到 .78 */
+.site-footer .meta { opacity: .78; margin-top: var(--space-4) !important; }
 
 /* ========== 平板 ≥ 768（PRD §5.2 双列） ========== */
 @media (min-width: 768px) {

@@ -43,7 +43,7 @@
         <input type="search" placeholder="试试搜『押金』『劝退』『借条』…" aria-label="搜索卡片" disabled>
         <span class="hint" aria-label="Day 10 上线">Day 10 上线</span>
       </div>
-      <a href="./index.html" aria-label="首页" style="font-size: var(--font-size-sm); color: var(--color-fg-soft);">首页</a>
+      <a href="./index.html" class="nav-link" aria-label="首页">首页</a>
     </div>
   </header>
 
@@ -51,15 +51,16 @@
     <div class="container">
 
       <section class="hero">
-        <!-- 右上角祥云装饰（淡墨色半透明） -->
-        <svg class="hero-deco-cloud" viewBox="0 0 100 50" aria-hidden="true">
-          <path d="M 18 32 Q 14 20 26 20 Q 32 12 42 16 Q 52 8 62 16 Q 72 12 80 20 Q 90 22 84 32 Z"
-                fill="#FBF7EE" stroke="#374151" stroke-width="1" opacity="0.65"/>
+        <!-- 竹叶丛装饰（右上 + 左下，深绿底上浅竹色叶片） -->
+        <svg class="hero-deco-leaf" viewBox="0 0 120 80" aria-hidden="true">
+          <path d="M8 74 Q 26 52 56 54 Q 34 68 10 78 Z" fill="#7FA88B" opacity="0.55"/>
+          <path d="M14 72 Q 44 38 84 44 Q 50 56 18 76 Z" fill="#A9C5AF" opacity="0.38"/>
+          <path d="M22 70 Q 62 22 110 32 Q 68 44 26 74 Z" fill="#7FA88B" opacity="0.26"/>
         </svg>
-        <!-- 左下角祥云装饰 -->
-        <svg class="hero-deco-cloud" viewBox="0 0 100 50" aria-hidden="true">
-          <path d="M 16 30 Q 12 18 24 18 Q 30 10 40 14 Q 50 6 60 14 Q 68 8 76 20 Q 88 18 82 30 Z"
-                fill="#FBF7EE" stroke="#374151" stroke-width="1" opacity="0.55"/>
+        <svg class="hero-deco-leaf" viewBox="0 0 120 80" aria-hidden="true">
+          <path d="M8 74 Q 26 52 56 54 Q 34 68 10 78 Z" fill="#7FA88B" opacity="0.50"/>
+          <path d="M14 72 Q 44 38 84 44 Q 50 56 18 76 Z" fill="#A9C5AF" opacity="0.34"/>
+          <path d="M22 70 Q 62 22 110 32 Q 68 44 26 74 Z" fill="#7FA88B" opacity="0.22"/>
         </svg>
         <div class="hero-inner">
           <div class="hero-text">
@@ -85,8 +86,8 @@
       </section>
 
       <section aria-labelledby="card-h" style="padding: var(--space-4) 0 var(--space-7);">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4);">
-          <h2 id="card-h" class="section-title" style="margin-bottom: 0;">最新情形</h2>
+        <div class="toolbar">
+          <h2 id="card-h" class="section-title">最新情形</h2>
           <div class="state-demo">
             <label for="state-demo-select">页面状态演示：</label>
             <select id="state-demo-select">
