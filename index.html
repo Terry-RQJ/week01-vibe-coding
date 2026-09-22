@@ -4,15 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="法律小科普轻站：让一个普通人 3 分钟读懂一个生活里的法律常识。AI 起草 + 律师复核，仅供学习参考，不构成具体法律咨询。">
-  <meta name="theme-color" content="#1E40AF">
+  <meta name="theme-color" content="#2F5238">
   <title>法律小科普轻站 · 让生活里的小事 3 分钟读懂</title>
   <link rel="stylesheet" href="./css/tokens.css">
   <link rel="stylesheet" href="./css/global.css">
 </head>
 <body>
+  <!-- 竹林装饰：两侧竹竿（fixed，不挡点击，手机端隐藏）-->
+  <svg class="bamboo-deco left" viewBox="0 0 72 800" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
+    <rect x="20" y="-20" width="14" height="840" rx="7" fill="#7FA88B" opacity="0.7"/>
+    <rect x="20" y="90"  width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="240" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="400" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="560" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <path d="M 34 60 Q 58 48 70 54 Q 56 66 34 62 Z" fill="#4A7C59" opacity="0.8"/>
+    <path d="M 34 250 Q 6 236 0 244 Q 14 258 34 252 Z" fill="#4A7C59" opacity="0.7"/>
+    <path d="M 34 430 Q 58 418 70 424 Q 56 438 34 432 Z" fill="#7FA88B" opacity="0.7"/>
+    <path d="M 34 640 Q 6 626 0 634 Q 14 648 34 642 Z" fill="#7FA88B" opacity="0.6"/>
+    <rect x="48" y="-20" width="9" height="840" rx="4.5" fill="#A9C5AF" opacity="0.45"/>
+  </svg>
+  <svg class="bamboo-deco right" viewBox="0 0 72 800" preserveAspectRatio="xMinYMin slice" aria-hidden="true">
+    <rect x="20" y="-20" width="14" height="840" rx="7" fill="#7FA88B" opacity="0.7"/>
+    <rect x="20" y="90"  width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="240" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="400" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <rect x="20" y="560" width="14" height="7" fill="#4A7C59" opacity="0.8"/>
+    <path d="M 34 60 Q 58 48 70 54 Q 56 66 34 62 Z" fill="#4A7C59" opacity="0.8"/>
+    <path d="M 34 250 Q 6 236 0 244 Q 14 258 34 252 Z" fill="#4A7C59" opacity="0.7"/>
+    <path d="M 34 430 Q 58 418 70 424 Q 56 438 34 432 Z" fill="#7FA88B" opacity="0.7"/>
+    <path d="M 34 640 Q 6 626 0 634 Q 14 648 34 642 Z" fill="#7FA88B" opacity="0.6"/>
+    <rect x="48" y="-20" width="9" height="840" rx="4.5" fill="#A9C5AF" opacity="0.45"/>
+  </svg>
+
   <header class="site-header">
     <div class="container">
-      <a href="./index.html" class="brand" aria-label="法律小科普轻站 回到首页">⚖️ 法律小科普轻站</a>
+      <a href="./index.html" class="brand" aria-label="法律小科普轻站 回到首页">🎋 法律小科普轻站</a>
       <div class="search-box" role="search">
         <input type="search" placeholder="试试搜『押金』『劝退』『借条』…" aria-label="搜索卡片" disabled>
         <span class="hint" aria-label="Day 10 上线">Day 10 上线</span>
@@ -21,7 +47,7 @@
     </div>
   </header>
 
-  <main>
+  <main style="position: relative; z-index: 1;">
     <div class="container">
 
       <section class="hero">
@@ -39,14 +65,15 @@
           <div class="hero-text">
             <span class="hero-title-accent" aria-hidden="true"></span>
             <h1>让生活里的小事，3 分钟读懂</h1>
-            <p>假设你刚收到公司发来的「劝退」短信，或者假设你下班路上被电动车撞了——这里会告诉你，第一步该做什么、相关法条是什么、有哪些坑千万别踩。</p>
+            <p>假设你刚收到公司发来的「劝退」短信，或者假设你下班路上被电动车撞了——熊猫法官会告诉你，第一步该做什么、相关法条是什么、有哪些坑千万别踩。</p>
+            <p class="updated-line">内容更新于 <time datetime="2026-09-22">2026-09-22</time> · 法条核验同日</p>
           </div>
-          <img class="hero-panda" src="./assets/icons/panda-lawyer.svg" alt="熊猫律师吉祥物" width="200" height="200">
+          <img class="hero-panda" src="./assets/icons/panda-judge.svg" alt="熊猫法官吉祥物" width="210" height="228">
         </div>
       </section>
 
       <section class="categories" aria-labelledby="cat-h">
-        <h2 id="cat-h" class="section-title">分情形浏览</h2>
+        <h2 id="cat-h" class="section-title">常见情景</h2>
         <ul class="category-list">
           <li><span class="chip chip-labor">劳动类</span></li>
           <li><span class="chip chip-consume">消费类</span></li>
@@ -57,12 +84,21 @@
         </ul>
       </section>
 
-      <section class="card-grid" aria-labelledby="card-h">
-        <h2 id="card-h" class="section-title" style="grid-column: 1 / -1;">最新情形</h2>
-        <div class="empty-state" role="status">
-          <div class="badge">Day 8 上线</div>
-          <p>第 1 张卡片（公司劝退）将于 Day 8 上线</p>
-          <p style="margin-top: var(--space-3); font-size: var(--font-size-sm);">Step 2 起滚动补充第 2、3、4…张 · 详见 README 「后续计划」</p>
+      <section aria-labelledby="card-h" style="padding: var(--space-4) 0 var(--space-7);">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4);">
+          <h2 id="card-h" class="section-title" style="margin-bottom: 0;">最新情形</h2>
+          <div class="state-demo">
+            <label for="state-demo-select">页面状态演示：</label>
+            <select id="state-demo-select">
+              <option value="success" selected>成功（列表）</option>
+              <option value="loading">加载中</option>
+              <option value="empty">空</option>
+              <option value="error">错误</option>
+            </select>
+          </div>
+        </div>
+        <div id="card-area" style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
+          <!-- 四种状态由 js/ui.js 渲染 -->
         </div>
       </section>
 
@@ -81,7 +117,7 @@
         人身安全事件请立即拨打 <strong>110</strong>。
       </div>
       <div class="meta">
-        本站为个人学习项目 · Day 7 首页骨架 · 2026-09-21 · 最后核验 2026-09-21
+        本站为个人学习项目 · Day 8 主视图（mock 数据版）· 2026-09-22 · 最后核验 2026-09-22
       </div>
     </div>
   </footer>
@@ -91,5 +127,9 @@
       本站依赖 JavaScript 才能正常使用搜索、收藏与详情页（Day 10 起启用）。
     </div>
   </noscript>
+
+  <script src="./data/cards.js"></script>
+  <script src="./js/store.js"></script>
+  <script src="./js/ui.js"></script>
 </body>
 </html>
