@@ -290,6 +290,74 @@ a:hover { text-decoration: underline; }
   font-size: var(--font-size-sm);
 }
 
+/* ========== Day 11：收藏按钮（交互反馈三态）========== */
+.fav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 2px 14px;
+  margin-left: var(--space-1);
+  border: 1.5px solid #2C5A3D;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #22452E;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease;
+}
+/* 触控热区扩到 44px（PRD §5.2 tap-min），视觉保持紧凑不破坏排版 */
+.fav-btn::after {
+  content: "";
+  position: absolute;
+  inset: -6px -8px;
+}
+.fav-btn:hover { background: var(--bamboo-pale); }
+.fav-btn:active { transform: scale(0.96); }
+/* 键盘焦点环（Day 11 加练：Tab 聚焦可见）*/
+.fav-btn:focus-visible {
+  outline: 3px solid var(--color-gold-warm);
+  outline-offset: 2px;
+}
+/* 已收藏：暖金实底，一眼区分 */
+.fav-btn.is-on {
+  background: var(--color-gold-warm);
+  border-color: #B8862F;
+  color: #3A2B08;
+}
+.fav-btn.is-on:hover { background: #C89240; }
+/* 处理中：禁用态（disabled + pointer-events 双保险防连点）*/
+.fav-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+  pointer-events: none;
+}
+.fav-star { font-size: 15px; line-height: 1; }
+
+/* 收藏反馈 toast（成功深绿 / 失败暖红）*/
+.fav-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%) translateY(8px);
+  background: #22452E;
+  color: #F2F7EF;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(15, 44, 29, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 50;
+}
+.fav-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.fav-toast.is-error { background: #9A3B1E; }
+
+
 /* ========== 四种页面状态（Day 8 核心要求）========== */
 .state-box {
   grid-column: 1 / -1;

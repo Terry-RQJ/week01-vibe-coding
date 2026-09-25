@@ -9,6 +9,17 @@
 
   var MOCK_DELAY = 600;
 
+  /* ---------- Day 11：收藏（前端临时状态，不落盘）----------
+   * 状态只放内存：刷新页面即重置。后续接 localStorage / 真实 API 时，
+   * 只改下面两个函数的内部实现，页面代码零改动（同 listCards 的升级缝隙）。
+   */
+  var bookmarks = Object.create(null);   // slug -> true
+
+  /** 失败路径测试钩子：URL 加 ?bookmarkFail=1 可稳定复现「出错」 */
+  function bookmarkShouldFail() {
+    return /[?&]bookmarkFail=1(?=&|$)/.test(window.location.search);
+  }
+
   /** 模拟一个可能失败的网络请求 */
   function fakeFetch(data) {
     return new Promise(function (resolve, reject) {
@@ -21,6 +32,22 @@
   }
 
   window.Store = {
+    /** 切换收藏：resolve(true)=已收藏，resolve(false)=已取消；失败 reject */
+    toggleBookmark: function (slug) {
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          if (bookmarkShouldFail()) { reject(new Error("mock network error")); return; }
+          if (bookmarks[slug]) { delete bookmarks[slug]; resolve(false); }
+          else { bookmarks[slug] = true; resolve(true); }
+        }, MOCK_DELAY);
+      });
+    },
+
+    /** 当前是否已收藏（同步；渲染卡片初始状态用） */
+    isBookmarked: function (slug) {
+      return !!bookmarks[slug];
+    },
+
     /** 全部已发布卡片，按发布时间倒序 */
     listCards: function () {
       var cards = (window.LAW_CARDS || []).filter(function (c) {

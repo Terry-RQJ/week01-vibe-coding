@@ -63,6 +63,7 @@
             '<span class="card-tag">' + esc(c.category) + '</span>' +
             '<span>📄 ' + lawNames + '</span>' +
             '<span>· 核验 ' + esc(c.last_verified_at) + '</span>' +
+            favBtnHtml(c.slug) +
           '</div>' +
         '</article>'
       );
@@ -72,6 +73,74 @@
       '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）</p>' +
       '<div class="card-grid" style="padding: 0;">' + html + '</div></div>';
   }
+
+  /* ---------- Day 11：收藏交互（前端临时状态）---------- */
+
+  /** 收藏按钮 HTML（已收藏时初始为金色已收藏态） */
+  function favBtnHtml(slug) {
+    var on = window.Store.isBookmarked(slug);
+    return '<button type="button" class="fav-btn' + (on ? ' is-on' : '') + '"' +
+      ' data-slug="' + esc(slug) + '" aria-pressed="' + on + '">' +
+      '<span class="fav-star" aria-hidden="true">' + (on ? '★' : '☆') + '</span>' +
+      (on ? '已收藏' : '收藏') +
+      '</button>';
+  }
+
+  /** 全局 toast：成功/失败都给一句话反馈（aria-live 播报） */
+  var toast = null;
+  var toastTimer = null;
+  function showToast(msg, isError) {
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "fav-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.toggle("is-error", !!isError);
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 2400);
+  }
+
+  /** 把按钮切到指定状态（文字 / 样式 / aria 同步变化） */
+  function setFavState(btn, on) {
+    btn.classList.toggle("is-on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.innerHTML = '<span class="fav-star" aria-hidden="true">' +
+      (on ? '★' : '☆') + '</span>' + (on ? '已收藏' : '收藏');
+  }
+
+  /** 点击处理：idle → busy（禁用防连点）→ 成功换态 / 失败还原+提示 */
+  function onFavClick(btn) {
+    if (btn.disabled) return;                       // 处理期间不可重复点击
+    var slug = btn.getAttribute("data-slug");
+    var wasOn = btn.classList.contains("is-on");
+    var prevHtml = btn.innerHTML;                   // 失败时还原
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.textContent = wasOn ? '取消中…' : '收藏中…';
+    window.Store.toggleBookmark(slug)
+      .then(function (nowOn) {
+        setFavState(btn, nowOn);
+        showToast(nowOn ? '已收藏！可在右上「我的」查看' : '已取消收藏', false);
+      })
+      .catch(function () {
+        btn.innerHTML = prevHtml;                   // 还原到点击前的样子
+        showToast('收藏没保存成功（网络开小差了），请再试一次', true);
+      })
+      .then(function () {                           // finally（兼容写法）
+        btn.disabled = false;
+        btn.removeAttribute("aria-busy");
+      });
+  }
+
+  /* 事件委托：卡片区域里点 .fav-btn 都走同一个处理 */
+  area.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest(".fav-btn") : null;
+    if (btn) onFavClick(btn);
+  });
 
   /* ---------- 加载入口 ---------- */
 
