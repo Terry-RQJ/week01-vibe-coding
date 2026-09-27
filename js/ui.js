@@ -31,7 +31,17 @@
       '</div>';
   }
 
-  function renderEmpty(catName) {
+  function renderEmpty(catName, keyword) {
+    if (keyword) {
+      /* Day 13：搜索无匹配 —— 明确告知 + 给出可操作的去路 */
+      area.innerHTML =
+        '<div class="state-box state-empty" role="status">' +
+          '<span class="badge">没有找到相关内容</span>' +
+          '<p>换个关键词试试（比如「押金」「劝退」），或直接搜法条（如「劳动合同法」）。</p>' +
+          '<p style="margin-top: var(--space-2); font-size: var(--font-size-sm);">清空搜索框即可恢复完整列表。</p>' +
+        '</div>';
+      return;
+    }
     area.innerHTML =
       '<div class="state-box state-empty" role="status">' +
         '<span class="badge">暂无内容</span>' +
@@ -54,7 +64,7 @@
     });
   }
 
-  function renderSuccess(cards, catName) {
+  function renderSuccess(cards, catName, keyword) {
     var html = cards.map(function (c) {
       var lawNames = (c.laws || []).map(function (l) { return esc(l.name); }).join("、");
       return (
@@ -70,11 +80,20 @@
         '</article>'
       );
     }).join("");
+    /* Day 13：结果行同时说明「当前筛了什么 + 共几个 + 怎么撤销」 */
+    var conditions = [];
+    if (catName) conditions.push('已筛选「' + esc(catName) + '」');
+    if (keyword) conditions.push('搜索「' + esc(keyword) + '」');
+    var countLine;
+    if (conditions.length > 0) {
+      var undo = keyword ? '（清空搜索框恢复）' : '（再点一次该分类恢复全部）';
+      countLine = conditions.join(' · ') + '：共 ' + cards.length + ' 个情形' + undo;
+    } else {
+      countLine = '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）';
+    }
     area.innerHTML = '<div class="state-success">' +
-      '<p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">' +
-      (catName
-        ? '已筛选「' + esc(catName) + '」：共 ' + cards.length + ' 个情形（再点一次该分类恢复全部）'
-        : '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）') + '</p>' +
+      '<p role="status" aria-live="polite" style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">' +
+      countLine + '</p>' +
       '<div class="card-grid" style="padding: 0;">' + html + '</div></div>';
   }
 
@@ -148,19 +167,27 @@
 
   /* ---------- 加载入口 ---------- */
 
-  function loadCards(forceState, categoryId, catName) {
-    if (forceState === "empty") { renderEmpty(catName); return; }
+  /* 过期响应防护（Day 13）：搜索是连续触发的（防抖后仍可能连续多次），
+   * 每次加载拿一个序号，回来时序号不是最新的就丢弃——防止慢的旧响应
+   * 覆盖新的筛选结果。 */
+  var loadSeq = 0;
+
+  function loadCards(forceState, categoryId, keyword) {
+    var mySeq = ++loadSeq;
+    keyword = (keyword || "").trim();
+    if (forceState === "empty") { renderEmpty(categoryId ? CAT_NAMES[categoryId] : null, keyword); return; }
     if (forceState === "error") { renderError(); return; }
     renderLoading();
-    var req = categoryId
-      ? window.Store.listCardsByCategory(categoryId)
-      : window.Store.listCards();
-    req
+    window.Store.searchCards(keyword, categoryId)
       .then(function (cards) {
-        if (!cards || cards.length === 0) { renderEmpty(catName); return; }
-        renderSuccess(cards, catName);
+        if (mySeq !== loadSeq) return;               // 已被更新的请求取代，丢弃
+        if (!cards || cards.length === 0) { renderEmpty(categoryId ? CAT_NAMES[categoryId] : null, keyword); return; }
+        renderSuccess(cards, categoryId ? CAT_NAMES[categoryId] : null, keyword);
       })
-      .catch(function () { renderError(); });
+      .catch(function () {
+        if (mySeq !== loadSeq) return;
+        renderError();
+      });
   }
 
   /* ---------- Day 12：分类筛选（Skill: legal-site-interaction）----------
@@ -169,11 +196,17 @@
    */
   var catList = document.querySelector(".category-list");
   var activeCat = null;
+  var activeKeyword = "";                            // Day 13：当前搜索关键词
 
   var CAT_NAMES = {
     labor: "劳动类", consume: "消费类", loan: "借贷类",
     marriage: "婚姻家庭类", traffic: "交通类", neighbor: "邻里 / 名誉类"
   };
+
+  /** 统一入口：按「分类 + 关键词」当前状态重新加载列表（谁变了都走这里） */
+  function applyFilters(forceState) {
+    loadCards(forceState || "success", activeCat, activeKeyword);
+  }
 
   /** 把所有 chip 的选中态样式/aria 同步到 activeCat */
   function syncChipStates() {
@@ -192,13 +225,39 @@
       var cat = chip.getAttribute("data-cat");
       activeCat = (activeCat === cat) ? null : cat;   // 再点一次 = 清空恢复
       syncChipStates();
-      loadCards("success", activeCat, activeCat ? CAT_NAMES[activeCat] : null);
+      applyFilters();
+    });
+  }
+
+  /* ---------- Day 13：关键词搜索 + 法条解析筛选（Skill: legal-site-interaction）----------
+   * 输入即搜（250ms 防抖，避免每个字符都打一次 600ms 的 mock 请求）；
+   * Enter 立即触发；清空（✕ / Esc / 删除）恢复完整列表；
+   * 与分类 chip 可叠加（交集）；无匹配显示「没有找到相关内容」。
+   * 数据走 Store.searchCards（唯一数据访问层，Skill §一.1）。
+   */
+  var searchInput = document.getElementById("card-search");
+  var searchTimer = null;
+
+  function flushSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+    activeKeyword = searchInput.value;
+    applyFilters();
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(flushSearch, 250);
+    });
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") flushSearch();          // 回车立即搜，不等防抖
     });
   }
 
   if (demoSelect) {
     demoSelect.addEventListener("change", function () {
-      loadCards(demoSelect.value);
+      applyFilters(demoSelect.value);                // 演示器也尊重当前筛选状态
     });
   }
 

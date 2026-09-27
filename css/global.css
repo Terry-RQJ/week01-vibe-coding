@@ -106,6 +106,12 @@ a:hover { text-decoration: underline; }
   color: var(--color-gold-warm);
   white-space: nowrap;
 }
+/* Day 13：搜索框启用 —— 聚焦金色光环（键盘 Tab 可见，Skill §三.5）*/
+.search-box { transition: border-color .18s ease, box-shadow .18s ease; }
+.search-box:focus-within {
+  border-color: var(--color-gold-warm);
+  box-shadow: 0 0 0 3px rgba(212, 162, 76, 0.25);
+}
 
 /* ========== 主区 hero ========== */
 .hero {

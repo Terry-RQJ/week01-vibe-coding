@@ -9,6 +9,12 @@
 
   var MOCK_DELAY = 600;
 
+  /* 分类 id → 名称（首页筛选/搜索共用一份映射，避免两处各写一份走偏） */
+  var CATEGORY_NAME = {
+    labor: "劳动类", consume: "消费类", loan: "借贷类",
+    marriage: "婚姻家庭类", traffic: "交通类", neighbor: "邻里 / 名誉类"
+  };
+
   /* ---------- Day 11：收藏（前端临时状态，不落盘）----------
    * 状态只放内存：刷新页面即重置。后续接 localStorage / 真实 API 时，
    * 只改下面两个函数的内部实现，页面代码零改动（同 listCards 的升级缝隙）。
@@ -29,6 +35,17 @@
         resolve(JSON.parse(JSON.stringify(data)));
       }, MOCK_DELAY);
     });
+  }
+
+  /** 把一张卡拼成可搜索的文本（小写；标题/摘要/情景/标签/步骤/法条解析全参与） */
+  function cardHaystack(c) {
+    var parts = [
+      c.title, c.summary, c.scenario, c.category,
+      (c.tags || []).join(" "),
+      (c.solution_steps || []).join(" "),
+      (c.laws || []).map(function (l) { return (l.name || "") + " " + (l.text || ""); }).join(" ")
+    ];
+    return parts.join(" ").toLowerCase();
   }
 
   window.Store = {
@@ -61,13 +78,28 @@
 
     /** 按分类取卡片 */
     listCardsByCategory: function (categoryId) {
-      var map = {
-        labor: "劳动类", consume: "消费类", loan: "借贷类",
-        marriage: "婚姻家庭类", traffic: "交通类", neighbor: "邻里 / 名誉类"
-      };
-      var name = map[categoryId];
+      var name = CATEGORY_NAME[categoryId];
       var cards = (window.LAW_CARDS || []).filter(function (c) {
         return c.category === name && c.status === "published";
+      });
+      return fakeFetch(cards);
+    },
+
+    /** Day 13：关键词搜索（可叠加分类筛选）
+     * 匹配范围：标题 / 摘要 / 情景 / 标签 / 应对步骤 / 法条解析（法条名称 + 原文）。
+     * keyword 为空且无分类时 = 全量列表，等价于 listCards()。
+     */
+    searchCards: function (keyword, categoryId) {
+      var kw = (keyword || "").trim().toLowerCase();
+      var catName = categoryId ? CATEGORY_NAME[categoryId] : null;
+      var cards = (window.LAW_CARDS || []).filter(function (c) {
+        if (c.status !== "published") return false;
+        if (catName && c.category !== catName) return false;
+        if (!kw) return true;
+        return cardHaystack(c).indexOf(kw) !== -1;
+      });
+      cards.sort(function (a, b) {
+        return b.published_at.localeCompare(a.published_at);
       });
       return fakeFetch(cards);
     },
