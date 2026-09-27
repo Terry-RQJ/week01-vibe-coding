@@ -237,6 +237,27 @@ a:hover { text-decoration: underline; }
 .category-list .chip.chip-traffic  { background: rgba(74, 124, 89, 0.26); color: #33593F;  border-color: rgba(74, 124, 89, 0.55); font-weight: 600; }
 .category-list .chip.chip-neighbor { background: rgba(124, 58, 237, 0.18); color: #5B21B6; border-color: rgba(124, 58, 237, 0.50); font-weight: 600; }
 
+/* Day 12：chip 变可点击按钮（原生 button 重置 + 筛选选中态 + 键盘焦点）*/
+.category-list .chip {
+  font: inherit;                       /* 按钮不继承字体，必须重置 */
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .18s ease;
+}
+.category-list .chip:hover  { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(24, 58, 37, 0.18); }
+.category-list .chip:active { transform: scale(0.97); }
+/* 筛选中：实底深竹绿 + 白字，与未选中一眼区分 */
+.category-list .chip.is-filtered {
+  background: #2C5A3D;
+  color: #F2F7EF;
+  border-color: #22452E;
+  box-shadow: 0 6px 16px rgba(24, 58, 37, 0.30);
+}
+/* 键盘焦点环（Skill §三.5：Tab 可见）*/
+.category-list .chip:focus-visible {
+  outline: 3px solid var(--color-gold-warm);
+  outline-offset: 2px;
+}
+
 /* ========== 卡片网格 ========== */
 .card-grid {
   display: grid;

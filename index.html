@@ -184,12 +184,13 @@
       <section class="categories" aria-labelledby="cat-h">
         <h2 id="cat-h" class="section-title">常见情景</h2>
         <ul class="category-list">
-          <li><span class="chip chip-labor">劳动类</span></li>
-          <li><span class="chip chip-consume">消费类</span></li>
-          <li><span class="chip chip-loan">借贷类</span></li>
-          <li><span class="chip chip-marriage">婚姻家庭类</span></li>
-          <li><span class="chip chip-traffic">交通类</span></li>
-          <li><span class="chip chip-neighbor">邻里 / 名誉类</span></li>
+          <!-- Day 12：chip 改为可点击按钮，data-cat 对应 LAW_CATEGORIES id；点击筛选，再点恢复 -->
+          <li><button type="button" class="chip chip-labor" data-cat="labor" aria-pressed="false">劳动类</button></li>
+          <li><button type="button" class="chip chip-consume" data-cat="consume" aria-pressed="false">消费类</button></li>
+          <li><button type="button" class="chip chip-loan" data-cat="loan" aria-pressed="false">借贷类</button></li>
+          <li><button type="button" class="chip chip-marriage" data-cat="marriage" aria-pressed="false">婚姻家庭类</button></li>
+          <li><button type="button" class="chip chip-traffic" data-cat="traffic" aria-pressed="false">交通类</button></li>
+          <li><button type="button" class="chip chip-neighbor" data-cat="neighbor" aria-pressed="false">邻里 / 名誉类</button></li>
         </ul>
       </section>
 

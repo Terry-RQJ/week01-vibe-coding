@@ -31,12 +31,14 @@
       '</div>';
   }
 
-  function renderEmpty() {
+  function renderEmpty(catName) {
     area.innerHTML =
       '<div class="state-box state-empty" role="status">' +
         '<span class="badge">暂无内容</span>' +
-        '<p>这个分类下的情形还在赶来的路上（竹笋破土需要时间）。</p>' +
-        '<p style="margin-top: var(--space-2); font-size: var(--font-size-sm);">换一个分类看看，或明天再来。</p>' +
+        '<p>' + (catName
+          ? '「' + esc(catName) + '」下的情形还在赶来的路上（竹笋破土需要时间）。'
+          : '这个分类下的情形还在赶来的路上（竹笋破土需要时间）。') + '</p>' +
+        '<p style="margin-top: var(--space-2); font-size: var(--font-size-sm);">点击上方其他分类，或再点一次当前分类恢复全部。</p>' +
       '</div>';
   }
 
@@ -52,7 +54,7 @@
     });
   }
 
-  function renderSuccess(cards) {
+  function renderSuccess(cards, catName) {
     var html = cards.map(function (c) {
       var lawNames = (c.laws || []).map(function (l) { return esc(l.name); }).join("、");
       return (
@@ -70,7 +72,9 @@
     }).join("");
     area.innerHTML = '<div class="state-success">' +
       '<p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">' +
-      '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）</p>' +
+      (catName
+        ? '已筛选「' + esc(catName) + '」：共 ' + cards.length + ' 个情形（再点一次该分类恢复全部）'
+        : '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）') + '</p>' +
       '<div class="card-grid" style="padding: 0;">' + html + '</div></div>';
   }
 
@@ -144,16 +148,52 @@
 
   /* ---------- 加载入口 ---------- */
 
-  function loadCards(forceState) {
-    if (forceState === "empty") { renderEmpty(); return; }
+  function loadCards(forceState, categoryId, catName) {
+    if (forceState === "empty") { renderEmpty(catName); return; }
     if (forceState === "error") { renderError(); return; }
     renderLoading();
-    window.Store.listCards()
+    var req = categoryId
+      ? window.Store.listCardsByCategory(categoryId)
+      : window.Store.listCards();
+    req
       .then(function (cards) {
-        if (!cards || cards.length === 0) { renderEmpty(); return; }
-        renderSuccess(cards);
+        if (!cards || cards.length === 0) { renderEmpty(catName); return; }
+        renderSuccess(cards, catName);
       })
       .catch(function () { renderError(); });
+  }
+
+  /* ---------- Day 12：分类筛选（Skill: legal-site-interaction）----------
+   * 点击 chip 筛选 → 再点同一个 chip 清空恢复；aria-pressed 同步；
+   * 数据走 Store.listCardsByCategory（唯一数据访问层，Skill §一.1）
+   */
+  var catList = document.querySelector(".category-list");
+  var activeCat = null;
+
+  var CAT_NAMES = {
+    labor: "劳动类", consume: "消费类", loan: "借贷类",
+    marriage: "婚姻家庭类", traffic: "交通类", neighbor: "邻里 / 名誉类"
+  };
+
+  /** 把所有 chip 的选中态样式/aria 同步到 activeCat */
+  function syncChipStates() {
+    var chips = catList.querySelectorAll(".chip");
+    for (var i = 0; i < chips.length; i++) {
+      var on = chips[i].getAttribute("data-cat") === activeCat;
+      chips[i].classList.toggle("is-filtered", on);
+      chips[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  }
+
+  if (catList) {
+    catList.addEventListener("click", function (e) {
+      var chip = e.target && e.target.closest ? e.target.closest(".chip") : null;
+      if (!chip || chip.disabled) return;
+      var cat = chip.getAttribute("data-cat");
+      activeCat = (activeCat === cat) ? null : cat;   // 再点一次 = 清空恢复
+      syncChipStates();
+      loadCards("success", activeCat, activeCat ? CAT_NAMES[activeCat] : null);
+    });
   }
 
   if (demoSelect) {
