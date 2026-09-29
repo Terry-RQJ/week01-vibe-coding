@@ -1,0 +1,9 @@
+{
+  "name": "apiHealth",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Day 15 first CloudBase function: GET /api/health",
+  "scripts": {
+    "start": "node index.js"
+  }
+}

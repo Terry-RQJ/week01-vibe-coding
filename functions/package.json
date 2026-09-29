@@ -1,0 +1,7 @@
+{
+  "name": "law-mini-site-api",
+  "version": "1.0.0",
+  "description": "法律小科普轻站 · CloudBase 云函数",
+  "main": "index.js",
+  "dependencies": {}
+}
