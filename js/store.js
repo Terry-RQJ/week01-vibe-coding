@@ -202,10 +202,12 @@
       return fakeFetch(list);
     },
 
-    /** Day 13：追加一条浏览（同一 slug 移到最前，最多 50 条） */
+    /** Day 13：追加一条浏览（同一 slug 移到最前，最多 50 条）
+     *  Day 14：viewed_at 改成完整 ISO（带时分秒），让浏览记录能显示「刚刚 / X 分钟前」
+     *  旧值（只有日期）仍能被 formatRelativeTime 解析为「昨天 / X 天前」 */
     addHistory: function (slug) {
       var list = loadHistory().filter(function (h) { return h.slug !== slug; });
-      list.unshift({ slug: slug, viewed_at: today() });
+      list.unshift({ slug: slug, viewed_at: new Date().toISOString() });
       if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
       saveHistory(list);
       return fakeFetch(true);

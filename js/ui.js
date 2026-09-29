@@ -16,6 +16,43 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  /** Day 14：相对时间格式化（浏览记录用）
+   *  输入兼容：完整 ISO 时间戳（"2026-09-29T14:32:00.000Z"，addHistory 新写入的）
+   *  与仅有日期的旧值（"2026-09-28"，addHistory 旧版 + seedForQA 演示数据）。
+   *  输出分级：刚刚 / X 分钟前 / 今天 HH:MM / 昨天 HH:MM / X 天前 / YYYY-MM-DD
+   */
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function parseDate(s) {
+    if (typeof s !== "string" || !s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + "T00:00:00");
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  function formatRelativeTime(input) {
+    var d = parseDate(input);
+    if (!d) return String(input || "");
+    var now = new Date();
+    var diffMs = now - d;
+    if (diffMs < 0) diffMs = 0;
+    var diffMin = Math.floor(diffMs / 60000);
+    var diffDay = Math.floor(diffMs / 86400000);
+
+    if (sameDay(now, d)) {
+      if (diffMin < 1) return "刚刚";
+      if (diffMin < 60) return diffMin + " 分钟前";
+      return "今天 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    }
+    var yest = new Date(now); yest.setDate(now.getDate() - 1);
+    if (sameDay(yest, d)) {
+      return "昨天 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    }
+    if (diffDay < 7) return diffDay + " 天前";
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
   /* ---------- 四种状态的 DOM 片段 ---------- */
 
   function renderLoading(area) {
@@ -96,10 +133,11 @@
       var rows = cards.map(function (entry) {
         var card = entry.card;
         if (!card) return "";   // slug 失效（卡被删了）就跳过
+        var rel = formatRelativeTime(entry.viewed_at);
         return (
           '<li class="history-item">' +
             '<a class="history-link" href="./card.html?slug=' + esc(card.slug) + '">' +
-              '<span class="history-time" aria-label="浏览于 ' + esc(entry.viewed_at) + '">' + esc(entry.viewed_at) + '</span>' +
+              '<span class="history-time" title="' + esc(entry.viewed_at) + '" aria-label="浏览于 ' + esc(rel) + '">' + esc(rel) + '</span>' +
               '<span class="history-title">' + esc(card.title) + '</span>' +
               '<span class="history-cat">' + esc(card.category) + '</span>' +
             '</a>' +
@@ -273,7 +311,8 @@
     favBtnHtml: favBtnHtml,
     setFavState: setFavState,
     onFavClick: onFavClick,
-    attachFavHandler: attachFavHandler
+    attachFavHandler: attachFavHandler,
+    formatRelativeTime: formatRelativeTime
   };
 
   /* ---------- 首页专属：分类筛选 + 搜索 ---------- */
