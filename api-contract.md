@@ -208,14 +208,55 @@
 | 接口 | 状态 | 依赖 |
 |---|---|---|
 | `GET /api/health` | Day 15 部署 | 无 |
-| `GET /api/cards` | Day 16–17 | CloudBase 数据库 + 卡片表 `cards` |
+| `GET /api/cards` | Day 17 | 表 `cards` + `laws`（Day 16 已建，见 §6） |
 | `GET /api/cards/:slug` | Day 17 | 同上 |
-| `GET /api/categories` | Day 17 | 同上 |
-| `GET /api/favorites` | Day 18（仅 §8.3 改后） | 收藏表 `favorites` |
+| `GET /api/categories` | Day 17 | 表 `cards`（count 由 `category_id` 聚合） |
+| `GET /api/favorites` | Day 18（仅 §8.3 改后） | 收藏表 `favorites`（未建） |
 | `POST /api/favorites` | Day 18 | 同上 |
 | `DELETE /api/favorites/:slug` | Day 18 | 同上 |
-| `GET /api/history` | Day 18 | 历史表 `history` |
+| `GET /api/history` | Day 18 | 历史表 `history`（未建） |
 | `POST /api/history` | Day 18 | 同上 |
+
+---
+
+## 6. 数据模型（Day 16 建表，与本文档互为依据）
+
+> 落库：CloudBase 环境的 **PostgreSQL 17**（环境建库时选了 PG 模式）。
+> 脚本：`db/schema.sql`（建表，可重复执行）、`db/seed.sql`（清空+种子，可重复执行）。
+> 执行/验证方式：`python db/exec.py schema|seed|verify`（内部走 `tcb db execute`），
+> 或控制台数据库页直接粘贴 SQL。
+
+### 6.1 两张表与关联（今日掌握点）
+
+| 表 | 存什么 | 主键 |
+|---|---|---|
+| `cards` | 情形卡自身的内容：标题/摘要/分类/情景/应对步骤/发布与复核信息 | `slug`（VARCHAR(64)） |
+| `laws` | 卡片引用的法条原文：名称/条文/官方链接/展示顺序 | `id`（自增 BIGINT） |
+
+- **关联字段：`laws.card_slug` = `cards.slug`**（外键，`ON DELETE CASCADE`——删卡连带删它的法条）
+- 一张卡引用 N 条法条（1:N）；拆表的原因：法条原文独立维护、不在每张卡里重复，多条卡可引同一条法律的不同条文
+- **分类不建表**：6 个分类是固定常量（§1.3），`count` 由 `cards.category_id` 聚合得出（`GROUP BY`），避免冗余和不一致
+
+### 6.2 cards 字段 ↔ 契约字段对照
+
+| 列 | 类型 | 来源/用途 |
+|---|---|---|
+| `slug` | VARCHAR(64) PK | §1.1/§1.2 的 `slug`，也是 URL 路径参数 |
+| `title` / `summary` | VARCHAR(128) / TEXT | §1.1 列表页字段 |
+| `category` / `category_id` | VARCHAR(32)/(16) | §1.1 的 `category`（中文名，冗余免联表）/ 筛选用 id |
+| `tags` / `solution_steps` / `related_slugs` | JSONB | §1.2 的数组字段（JSONB 支持包含查询） |
+| `scenario` | TEXT | §1.2 详情页情景 |
+| `published_at` / `updated_at` / `last_verified_at` | DATE | §1.1/§1.2 的时间字段；`last_verified_at` 为 AGENTS §2-8 强制 |
+| `author_type` / `reviewed_by` | VARCHAR(32)/(64) | §1.2 的来源标注与复核人 |
+| `status` | VARCHAR(16) + CHECK | `draft/published/offline`，接口只返回 `published` |
+
+（`laws`：`id` / `card_slug`(FK) / `name` / `text` / `source_url` / `sort_order`，对应 §1.2 响应的 `laws[]` 数组元素。）
+
+### 6.3 种子数据与验证（Day 16 实测）
+
+- 种子：`data/cards.js` 的 6 张卡 → `cards` 6 行；11 条法条 → `laws` 11 行
+- `seed.sql` 用 `TRUNCATE ... RESTART IDENTITY CASCADE` 先清再插，重复执行不报错、结果一致（已连跑 2 遍验证）
+- select 验证（云端真实执行）：每表 ≥5 行 ✅、`JOIN` 关联每卡法条数（1–3 条/卡）✅、`GROUP BY category_id` 聚合 = §1.3 的 count ✅、外键与 CHECK 约束拦截非法插入 ✅
 
 ---
 
@@ -228,3 +269,4 @@ Day 15–17 不配（前端走 CloudBase 静态托管，与云函数同根域；
 ## 5. 变更日志
 
 - 2026-09-29 · Day 15：路线 A→B 重审后新增本文档；§1 内容接口上线；§2 用户数据两套方案待勾选。
+- 2026-10-02 · Day 16：新增 §6 数据模型——`cards` + `laws` 两张表已建入 CloudBase PostgreSQL（`db/schema.sql` + `db/seed.sql` 可重复执行，种子 6+11 行）；§3 占位清单更新依赖状态。

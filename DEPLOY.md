@@ -147,3 +147,31 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 | 公网 API | https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api/health |
 | 前端公网 | https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/ |
 | 截图 | `day15-api-health.png`、`day15-frontend.png`（PNG 按仓库惯例不入库） |
+
+---
+
+## 11. Day 16 建库实测（2026-09-28 动手 / 10-02 截图收尾）
+
+**环境意外惊喜**：建环境时选了 PostgreSQL 模式（不是文档型数据库），
+`tcb db execute --sql` 直跑真 SQL，不用再设计 nosql 映射。
+
+| 项 | 值 |
+|---|---|
+| 库 | PostgreSQL 17（CloudBase 托管） |
+| 表 | `cards`（主键 slug，6 行）+ `laws`（主键 id 自增，11 行，外键 card_slug → cards.slug ON DELETE CASCADE） |
+| 脚本 | `db/schema.sql`（可重复执行）、`db/seed.sql`（TRUNCATE+INSERT 幂等，连跑 2 遍 id 从 1 重排） |
+| 验证 | `python db/exec.py verify`：每表 ≥5 行、JOIN、外键级联拦截、CHECK status 拦截、分类聚合 = 6 类各 1 张，ALL PASS |
+| 截图 | `day16-cards-console.png`（6 行）、`day16-laws-console.png`（11 行），控制台 SQL 编辑器页面（PNG 不入库） |
+
+### 踩坑记录（Day 16 新增）
+
+1. **Windows 下 Python 经 tcb.cmd shim 传 SQL 被换行符截断**：多行 SQL 只传进第一行
+   （首行若是 `--` 注释则等于空操作，还返回成功，纯属假成功）。根因是 .cmd shim 走
+   `cmd /c`，换行符即命令终止符。**修法**：发送前压平——去掉注释行、`" ".join(splitlines())`
+   合并成一行（见 `db/exec.py` 的 `tcb_sql()`）。bash 直接跑不经 cmd 所以没事，只有
+   Python subprocess 才踩。多语句同理：必须 `;` 拆开逐条下发，整段 blob 会假成功。
+2. **控制台「数据编辑器」页面一直转圈显示 0 条**（连元数据「无主键」都加载不出），
+   点表名也不触发请求；但 CLI `SELECT count(*)` 数据完好。**绕法**：改用控制台
+   「SQL 编辑器」页执行 `SELECT` 截图，效果等同且更像真操作。数据本身没问题。
+3. `laws` 实际列名与最初设计不同（`name`/`text`/`source_url`，非 title/quote/article），
+   以 `db/schema.sql` 为准；写 SELECT 前先查 `information_schema.columns`。
