@@ -48,3 +48,8 @@ CREATE TABLE laws (
 );
 
 CREATE INDEX idx_laws_card ON laws(card_slug);             -- 按卡取法条（GET /api/cards/:slug）
+
+-- ── Day 17 追加：读接口通道授权 ──
+-- 云函数走 HTTP API exec-pgsql（默认只读角色）查表；该角色名随环境实例名变化，
+-- 部署新环境时先查 pg_roles 里 LIKE 'cloudbase_read_only_user%' 的实际角色名再 GRANT。
+GRANT SELECT ON cards, laws TO cloudbase_read_only_user_postgres_ebc42q2s;

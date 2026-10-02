@@ -175,3 +175,29 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
    「SQL 编辑器」页执行 `SELECT` 截图，效果等同且更像真操作。数据本身没问题。
 3. `laws` 实际列名与最初设计不同（`name`/`text`/`source_url`，非 title/quote/article），
    以 `db/schema.sql` 为准；写 SELECT 前先查 `information_schema.columns`。
+---
+
+## 12. Day 17 GET 读接口上线（2026-10-02）
+
+| 项 | 值 |
+|---|---|
+| 新云函数 | `apiCards`（/api/cards，列表+详情+搜索）· `apiCategories`（/api/categories，聚合） |
+| 数据通道 | 云函数 → `POST https://{envId}.api.tcloudbasegateway.com/v1/rdb/exec-pgsql`（参数化 SQL `$1/$2/$3`，默认只读角色） |
+| 凭证 | 控制台「环境管理 → API Key 配置」创建服务端 API Key（JWT，service_role，永不过期），存函数环境变量 `CB_API_KEY`；**部署时临时注入 cloudbaserc.json、部署完立即还原**，仓库里永远只有空 `envVariables: {}` |
+| 授权 | `GRANT SELECT ON cards, laws TO cloudbase_read_only_user_postgres_ebc42q2s`（角色名随环境实例名变，已追加进 db/schema.sql） |
+| 公网地址 | `https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api/cards`（+ `?slug=` `?category=` `?keyword=` `?limit=`；`/api/categories`） |
+| 前端接入 | `js/store.js` 内容读切到真 API（fetch 5s 超时），失败回落 data/cards.js 静态数据；页面代码零改动（v3.0 升级缝隙兑现） |
+| 截图 | `day17-api-cards.png`（API 返回 JSON）、`day17-frontend.png`（首页显示真库数据） |
+
+### 踩坑记录（Day 17 新增）
+
+1. **函数自设 `Access-Control-Allow-Origin: *` 会被网关拼成 `origin,*` 双值** —— CORS 规范要求
+   单值，浏览器直接 `Failed to fetch`。结论：**云函数不要设 CORS 头**，网关按 Origin 自动回正确的单值。
+2. **网关固定回 `content-disposition: attachment`**，函数回 `inline` 也覆盖不掉；实测 Edge 顶层导航
+   仍直接显示 JSON 文本（每个测试域名首次访问有「页面访问提示」中间页，点确定后记住）。
+3. **网关不支持子路径路由**：`gatewayPath: /api/cards` 时请求 `/api/cards/xxx` 的 path 被归一，
+   详情接口改用 `?slug=` 查询参数（契约 §1.2 已同步改形态）。
+4. `exec-pgsql` 默认角色是只读用户，但**该角色默认没有任何表权限**（42501），要手动 GRANT SELECT；
+   角色名带实例后缀，先查 `pg_roles`。
+5. 本地直调云函数代码冒烟（Node 直跑 index.js + 真 API Key）能在部署前抓住 90% 的问题，
+   Day 17 的 9 个用例全靠这个提前跑通。

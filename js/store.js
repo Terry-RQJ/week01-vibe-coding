@@ -8,6 +8,8 @@
  * Day 13：浏览记录（localStorage，按 viewed_at 倒序，上限 50 条）
  *         + getCardsBySlugs（收藏/历史页的子集取卡）
  *         + seedForQA（?seed=1 给空状态预填演示数据，便于截图）
+ * Day 17：内容读（卡片/分类/详情）切换到真 API（CloudBase PG 经云函数），
+ *         失败自动回落 data/cards.js 静态数据；页面代码零改动（升级缝隙兑现）
  */
 (function () {
   "use strict";
@@ -16,6 +18,45 @@
   var HISTORY_KEY = "LAW_HISTORY";
   var BOOKMARKS_KEY = "LAW_BOOKMARKS";
   var HISTORY_MAX = 50;
+
+  /* ---------- Day 17：内容读走真 API（CloudBase PostgreSQL）----------
+   * 兑现 v3.0 预留的升级缝隙：只改本文件内部实现，页面代码零改动。
+   * 策略：内容（卡片/分类）优先 GET 云函数接口；接口不可用（断网/函数冷启动失败）
+   * 自动回落到 data/cards.js 静态数据 —— 站点永不会因 API 挂掉而空白。
+   * 用户数据（收藏/浏览记录）仍走 localStorage（PRD §8.3，Day 18 再议）。 */
+  var API_BASE = "https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api";
+  var API_TIMEOUT = 5000;
+
+  /** fetch 带 4xx/5xx/超时统一 reject；resolve 响应里的 data 字段 */
+  function apiGet(path) {
+    if (!window.fetch) return Promise.reject(new Error("no fetch"));
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, API_TIMEOUT);
+    return fetch(API_BASE + path, { method: "GET", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (res) {
+        clearTimeout(timer);
+        if (!res.ok) {
+          var e = new Error("HTTP " + res.status);
+          e.status = res.status;
+          throw e;
+        }
+        return res.json();
+      })
+      .then(function (j) {
+        if (!j || j.ok !== true) throw new Error((j && j.error && j.error.message) || "API error");
+        return j.data;
+      });
+  }
+
+  /** API 优先 + 静态回落的通用包装。localFn 必须返回 Promise */
+  function apiOrLocal(path, localFn, trust404) {
+    return apiGet(path).catch(function (err) {
+      // 404 = API 正常工作、确实没有这张卡 → 不回落（以云端为准），直接透传语义
+      if (trust404 && err && err.status === 404) return null;
+      // 其他失败（断网/超时/5xx）→ 回落静态 mock，保站点可用
+      return localFn();
+    });
+  }
 
   /* QA 钩子：seed=1 时给空 localStorage 预填演示数据，便于「成功」态截图
    * 注意：必须在模块顶部、读 localStorage 之前调用（否则 Store 副本感知不到） */
@@ -135,64 +176,90 @@
       return !!bookmarks[slug];
     },
 
-    /** 全部已发布卡片，按发布时间倒序 */
+    /** 全部已发布卡片，按发布时间倒序（Day 17：真 API，回落静态） */
     listCards: function () {
-      var cards = (window.LAW_CARDS || []).filter(function (c) {
-        return c.status === "published";
+      return apiOrLocal("/cards?limit=50", function () {
+        var cards = (window.LAW_CARDS || []).filter(function (c) {
+          return c.status === "published";
+        });
+        cards.sort(function (a, b) {
+          return b.published_at.localeCompare(a.published_at);
+        });
+        return fakeFetch(cards);
       });
-      cards.sort(function (a, b) {
-        return b.published_at.localeCompare(a.published_at);
-      });
-      return fakeFetch(cards);
     },
 
-    /** 按分类取卡片 */
+    /** 按分类取卡片（Day 17：真 API） */
     listCardsByCategory: function (categoryId) {
-      var name = CATEGORY_NAME[categoryId];
-      var cards = (window.LAW_CARDS || []).filter(function (c) {
-        return c.category === name && c.status === "published";
+      return apiOrLocal("/cards?category=" + encodeURIComponent(categoryId || "") + "&limit=50", function () {
+        var name = CATEGORY_NAME[categoryId];
+        var cards = (window.LAW_CARDS || []).filter(function (c) {
+          return c.category === name && c.status === "published";
+        });
+        return fakeFetch(cards);
       });
-      return fakeFetch(cards);
     },
 
     /** Day 13：关键词搜索（可叠加分类筛选）
-     * 匹配范围：标题 / 摘要 / 情景 / 标签 / 应对步骤 / 法条解析（法条名称 + 原文）。
-     * keyword 为空且无分类时 = 全量列表，等价于 listCards()。
+     * Day 17：走 /api/cards?keyword=&category=（服务端 SQL 参数化，含法条全文检索），
+     *         失败回落本地静态搜索（匹配范围一致）。
      */
     searchCards: function (keyword, categoryId) {
-      var kw = (keyword || "").trim().toLowerCase();
-      var catName = categoryId ? CATEGORY_NAME[categoryId] : null;
-      var cards = (window.LAW_CARDS || []).filter(function (c) {
-        if (c.status !== "published") return false;
-        if (catName && c.category !== catName) return false;
-        if (!kw) return true;
-        return cardHaystack(c).indexOf(kw) !== -1;
+      var qs = [];
+      if (keyword && keyword.trim()) qs.push("keyword=" + encodeURIComponent(keyword.trim()));
+      if (categoryId) qs.push("category=" + encodeURIComponent(categoryId));
+      return apiOrLocal("/cards" + (qs.length ? "?" + qs.join("&") : "") + (qs.length ? "&" : "?") + "limit=50", function () {
+        var kw = (keyword || "").trim().toLowerCase();
+        var catName = categoryId ? CATEGORY_NAME[categoryId] : null;
+        var cards = (window.LAW_CARDS || []).filter(function (c) {
+          if (c.status !== "published") return false;
+          if (catName && c.category !== catName) return false;
+          if (!kw) return true;
+          return cardHaystack(c).indexOf(kw) !== -1;
+        });
+        cards.sort(function (a, b) {
+          return b.published_at.localeCompare(a.published_at);
+        });
+        return fakeFetch(cards);
       });
-      cards.sort(function (a, b) {
-        return b.published_at.localeCompare(a.published_at);
-      });
-      return fakeFetch(cards);
     },
 
-    /** 分类目录 */
+    /** 分类目录（Day 17：真 API 聚合 count，desc 仍是静态文案） */
     listCategories: function () {
-      return fakeFetch(window.LAW_CATEGORIES || []);
-    },
-
-    /** 按 slug 取单张卡（详情页用） */
-    getCard: function (slug) {
-      var found = (window.LAW_CARDS || []).find(function (c) { return c.slug === slug; });
-      return fakeFetch(found || null);
-    },
-
-    /** Day 13：按 slug 列表取卡（收藏页 / 历史页用，按传入顺序保留） */
-    getCardsBySlugs: function (slugs) {
-      var map = Object.create(null);
-      (slugs || []).forEach(function (s) { if (s) map[s] = true; });
-      var list = (window.LAW_CARDS || []).filter(function (c) {
-        return map[c.slug] && c.status === "published";
+      return apiOrLocal("/categories", function () {
+        return fakeFetch(window.LAW_CATEGORIES || []);
+      }).then(function (cats) {
+        if (!cats || !cats.length || !cats[0].id) return cats; // 回落结果直接过
+        var byId = {};
+        (window.LAW_CATEGORIES || []).forEach(function (c) { byId[c.id] = c.desc; });
+        return cats.map(function (c) { c.desc = byId[c.id] || ""; return c; });
       });
-      return fakeFetch(list);
+    },
+
+    /** 按 slug 取单张卡（详情页用；Day 17：真 API 含 laws，404 透传，断网回落静态） */
+    getCard: function (slug) {
+      return apiOrLocal("/cards?slug=" + encodeURIComponent(slug || ""), function () {
+        var found = (window.LAW_CARDS || []).find(function (c) { return c.slug === slug; });
+        return fakeFetch(found || null);
+      }, true);
+    },
+
+    /** Day 13：按 slug 列表取卡（收藏页 / 历史页用，按传入顺序保留）
+     *  Day 17：真 API 全量取回后本地过滤（接口暂无 batch 端点，卡片 ≤12 张无压力） */
+    getCardsBySlugs: function (slugs) {
+      var want = {};
+      (slugs || []).forEach(function (s) { if (s) want[s] = true; });
+      var localFn = function () {
+        var list = (window.LAW_CARDS || []).filter(function (c) {
+          return want[c.slug] && c.status === "published";
+        });
+        return fakeFetch(list);
+      };
+      return apiGet("/cards?limit=50")
+        .then(function (cards) {
+          return (cards || []).filter(function (c) { return want[c.slug]; });
+        })
+        .catch(localFn);
     },
 
     /** Day 13：浏览记录（按 viewed_at 倒序） */
