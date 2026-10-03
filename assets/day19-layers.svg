@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 470" font-family="'Microsoft YaHei','Segoe UI',sans-serif">
+  <rect x="0" y="0" width="680" height="470" fill="#faf9f5"/>
+  <text x="340" y="34" text-anchor="middle" font-size="19" font-weight="bold" fill="#2F5238">Day 19 · 后端分层架构（重构后）</text>
+  <text x="340" y="56" text-anchor="middle" font-size="12" fill="#8a8a7a">一条请求从浏览器到 PostgreSQL 要经过的四层 · SQL 只住在数据访问层</text>
+
+  <!-- 浏览器 -->
+  <rect x="40" y="80" width="170" height="64" rx="10" fill="#ffffff" stroke="#c9c4b2"/>
+  <text x="125" y="107" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">浏览器 / 前端</text>
+  <text x="125" y="128" text-anchor="middle" font-size="11" fill="#777">fetch GET / POST</text>
+
+  <!-- 箭头 1 -->
+  <line x1="210" y1="112" x2="268" y2="112" stroke="#2F5238" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="239" y="100" text-anchor="middle" font-size="10" fill="#8a8a7a">HTTPS</text>
+
+  <!-- 网关 -->
+  <rect x="270" y="80" width="150" height="64" rx="10" fill="#eef4ee" stroke="#2F5238"/>
+  <text x="345" y="107" text-anchor="middle" font-size="14" font-weight="bold" fill="#2F5238">CloudBase 网关</text>
+  <text x="345" y="128" text-anchor="middle" font-size="11" fill="#557">/api/* → 云函数（自动回 CORS）</text>
+
+  <!-- 箭头 2 -->
+  <line x1="420" y1="112" x2="478" y2="112" stroke="#2F5238" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- 云函数大框 -->
+  <rect x="480" y="70" width="170" height="330" rx="12" fill="#ffffff" stroke="#2F5238" stroke-width="1.5"/>
+  <text x="565" y="92" text-anchor="middle" font-size="12" font-weight="bold" fill="#2F5238">云函数（×3：cards / categories / favorites）</text>
+
+  <!-- 入口层 -->
+  <rect x="496" y="104" width="138" height="58" rx="8" fill="#fdeeee" stroke="#b45a5a"/>
+  <text x="565" y="126" text-anchor="middle" font-size="13" font-weight="bold" fill="#b45a5a">入口层 index.js</text>
+  <text x="565" y="146" text-anchor="middle" font-size="10.5" fill="#8a5555">接请求 · 中文校验 · 拼响应</text>
+
+  <!-- 数据访问层 -->
+  <rect x="496" y="178" width="138" height="70" rx="8" fill="#fdf6e3" stroke="#D4A24C"/>
+  <text x="565" y="200" text-anchor="middle" font-size="13" font-weight="bold" fill="#a67c1f">数据访问层</text>
+  <text x="565" y="218" text-anchor="middle" font-size="10.5" fill="#7a6330">cardsRepository.js</text>
+  <text x="565" y="233" text-anchor="middle" font-size="10.5" fill="#7a6330">lawsRepository.js</text>
+  <text x="565" y="248" text-anchor="middle" font-size="10.5" fill="#7a6330">favoritesRepository.js</text>
+
+  <!-- 连接层 -->
+  <rect x="496" y="264" width="138" height="58" rx="8" fill="#e8f0f8" stroke="#4a7a9b"/>
+  <text x="565" y="286" text-anchor="middle" font-size="13" font-weight="bold" fill="#35608a">连接层 db.js</text>
+  <text x="565" y="306" text-anchor="middle" font-size="10.5" fill="#557090">https.request · 超时 · 写提权</text>
+
+  <!-- 箭头（云函数内部） -->
+  <line x1="565" y1="162" x2="565" y2="176" stroke="#999" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <line x1="565" y1="248" x2="565" y2="262" stroke="#999" stroke-width="1.5" marker-end="url(#arr2)"/>
+  <line x1="565" y1="322" x2="565" y2="342" stroke="#999" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+  <!-- 数据库 -->
+  <rect x="496" y="344" width="138" height="44" rx="8" fill="#2F5238"/>
+  <text x="565" y="362" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">PostgreSQL</text>
+  <text x="565" y="379" text-anchor="middle" font-size="10.5" fill="#cfe0cf">cards · laws · favorites</text>
+
+  <!-- 左侧原则说明 -->
+  <rect x="40" y="170" width="390" height="150" rx="10" fill="#ffffff" stroke="#c9c4b2"/>
+  <text x="60" y="196" font-size="13" font-weight="bold" fill="#2F5238">分层红线（Day 19 起）</text>
+  <text x="60" y="222" font-size="12" fill="#555">① SQL 只写在 *Repository.js，全参数化（$1/$2…）</text>
+  <text x="60" y="244" font-size="12" fill="#555">② index.js 只留「接请求 → 调函数 → 返响应」，零 SQL</text>
+  <text x="60" y="266" font-size="12" fill="#555">③ 400/404/409 人话报错留入口层；repository 只报数据事实</text>
+  <text x="60" y="288" font-size="12" fill="#555">④ 接口路径 / 参数 / 响应形状与重构前逐字节一致</text>
+  <text x="60" y="310" font-size="11" fill="#999">注：db.js 与 repository 按函数目录各放一份 —— CloudBase</text>
+  <text x="60" y="326" font-size="11" fill="#999">按目录独立打包，跨目录 require 上不了线</text>
+
+  <!-- 箭头 3：连接层 → 数据库网关 -->
+  <text x="340" y="395" text-anchor="middle" font-size="11" fill="#8a8a7a">db.js → POST https://{envId}.api.tcloudbasegateway.com/v1/rdb/exec-pgsql（Bearer API Key，SQL 参数化）</text>
+
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2F5238"/>
+    </marker>
+    <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#999"/>
+    </marker>
+  </defs>
+</svg>

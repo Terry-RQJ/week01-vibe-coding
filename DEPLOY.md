@@ -224,3 +224,31 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 3. **Edge 最小化时窗口矩形是 (-16000,-16000)**，按面积过滤会把它漏掉；截图脚本要先 `IsIconic` →
    `ShowWindow(SW_RESTORE)` → 重查 `GetWindowRect`（还原后坐标会变）。
 4. profile 重启后首次进控制台会先跳登录页——**别急着喊用户扫码**，等 10–20s 常会自动跳回（登录态其实在）。
+
+---
+
+## 14. Day 19 后端分层重构（2026-10-03）
+
+### 拆了什么：三个云函数统一拆成「db.js + *Repository.js + 薄入口 index.js」
+
+| 层 | 文件 | 职责 | 不许出现 |
+|---|---|---|---|
+| 连接层 | `db.js`（cards/categories/favorites 各一份） | exec-pgsql 网关调用、超时、错误包装；favorites 版支持 `role` 写提权 | 业务 SQL |
+| 数据访问层 | `cardsRepository.js` / `lawsRepository.js` / `favoritesRepository.js` | 该表**全部** SQL（全参数化），返回行数组/布尔/计数 | HTTP 处理、中文报错文案 |
+| 入口层 | `index.js`（瘦身后约 60–160 行） | 接请求 → 参数校验（中文 400/404/409）→ 调 repository → 拼响应 | 任何 SQL 字符串 |
+
+- 每函数目录一份 db.js/repository 是 **CloudBase 按函数目录独立打包**导致的（跨目录 require 上不了线），不是设计冗余。
+- 404/409 这类「人话报错」留入口层：它们是请求层职责；repository 只报数据层事实（如 23505）。
+- 分层示意图：`assets/day19-layers.svg`（余力加练）。
+
+### 回归验证（重构前后各 21 项，响应体逐字节对比）
+
+- 覆盖：health / cards 列表 4 变体 / cards 详情 / categories / favorites 完整序列（重置→收藏→重复 409→缺字段 400×3→不存在 404→列表→取消 removed=1→重复取消 removed=0→空列表）。
+- 方法：`.tmp-regress.sh before|after` 两轮 + Node 脚本 diff（仅归一化 `time`/`created_at`/`favorited_at` 动态时间戳）→ **完全一致**。
+- 另跑本地直调冒烟 21 用例（真 API Key + mock event）再部署，线上回归零意外。
+
+### 踩坑记录（Day 19 新增）
+
+1. **CloudBase 测试域名中间页会吃掉 API 截图**——浏览器首次访问每个路径都有「页面访问提示」，要先 CDP 点「确定访问」再截（点过一次按域记住，换路径还会再弹）。
+2. `cloudbaserc.json` 被 Node `JSON.stringify` 重写后只是换行符变了也会整文件 M——**先 `git diff` 确认无实质差异再 checkout 还原**，别把密钥注入轮次的格式化噪声提交进仓库。
+3. 回归对比必须归一化动态字段：/health 的 `time`、favorites 的 `created_at`/`favorited_at`，否则永远 DIFF。

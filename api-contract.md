@@ -305,3 +305,4 @@
 - 2026-10-02 · Day 16：新增 §6 数据模型——`cards` + `laws` 两张表已建入 CloudBase PostgreSQL（`db/schema.sql` + `db/seed.sql` 可重复执行，种子 6+11 行）；§3 占位清单更新依赖状态。
 - 2026-10-02 · Day 17：§1.1/§1.2/§1.3 三个读接口**部署并通过真库验证**（响应统一加 `ok` 字段；§1.2 因网关不支持子路径改为 `?slug=` 查询参数形态）；新增 `limit` 参数（加练）；§0 补 CORS 实测结论。数据通道：云函数 → `POST {envId}.api.tcloudbasegateway.com/v1/rdb/exec-pgsql`（参数化 SQL `$1/$2/$3`，默认只读角色；API Key 存函数环境变量 `CB_API_KEY`，不进仓库）。前端 `js/store.js` 内容读切到真 API、失败回落静态 mock（页面代码零改动）。
 - 2026-10-03 · Day 18：§2B.1/§2B.2 读写接口**部署并通过写入/读回真库验证**——`favorites` 表建好（`UNIQUE(client_id, card_slug)` 防重复，见 `db/schema.sql`）；POST 中文校验（缺字段 400 / 重复 409 / 不存在 404）；`on:false` 幂等取消替代 DELETE；新增可选 `client_id` 参数（V1 匿名标识）；服务端 JSON 日志（加练）。前端收藏仍走 localStorage，切换留 V2。
+- 2026-10-03 · Day 19：**后端分层重构（本文档所有接口路径、参数、响应形状零改动）**——SQL 全部下沉 `*Repository.js`，数据库连接下沉 `db.js`，云函数入口只留「接请求 → 校验 → 调函数 → 返响应」；重构后 21 项回归（含错误分支）响应体与重构前逐字节一致（时间戳归一化后）。分层示意见 `assets/day19-layers.svg`。
