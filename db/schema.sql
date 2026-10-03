@@ -53,3 +53,16 @@ CREATE INDEX idx_laws_card ON laws(card_slug);             -- 按卡取法条（
 -- 云函数走 HTTP API exec-pgsql（默认只读角色）查表；该角色名随环境实例名变化，
 -- 部署新环境时先查 pg_roles 里 LIKE 'cloudbase_read_only_user%' 的实际角色名再 GRANT。
 GRANT SELECT ON cards, laws TO cloudbase_read_only_user_postgres_ebc42q2s;
+
+-- ── Day 18 追加：用户收藏表（POST /api/favorites 写入）──
+-- 防重复靠 UNIQUE(client_id, card_slug)：重复提交触发 23505，接口转 409
+-- client_id：V1 无登录态，匿名标识（body 可传，默认 'anon'）；将来接登录换成用户 id
+CREATE TABLE IF NOT EXISTS favorites (
+    id BIGSERIAL PRIMARY KEY,
+    client_id VARCHAR(64) NOT NULL DEFAULT 'anon',
+    card_slug VARCHAR(64) NOT NULL REFERENCES cards(slug) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (client_id, card_slug)
+);
+CREATE INDEX IF NOT EXISTS idx_favorites_client ON favorites(client_id);
+GRANT SELECT ON favorites TO cloudbase_read_only_user_postgres_ebc42q2s;

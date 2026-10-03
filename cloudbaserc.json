@@ -40,6 +40,19 @@
       "public": true,
       "gatewayPath": "/api/categories",
       "envVariables": {}
+    },
+    {
+      "name": "apiFavorites",
+      "dir": "./functions/api/favorites",
+      "type": "HTTP",
+      "runtime": "Nodejs16.13",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 128,
+      "installDependency": true,
+      "public": true,
+      "gatewayPath": "/api/favorites",
+      "envVariables": {}
     }
   ]
 }

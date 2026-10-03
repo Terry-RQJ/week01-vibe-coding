@@ -151,36 +151,57 @@
 
 ### 2B 方案（升级 · §8.3 重审通过后）
 
-#### 2B.1 `GET /api/favorites`
+> **Day 18 状态：后端能力已上线**（`favorites` 表 + `apiFavorites` 云函数已部署并完成写入/读回验证）。
+> 前端 `js/store.js` 收藏仍走 localStorage（§8.3 未正式重审，切换留到 V2）。
+> V1 无登录态，新增可选参数 `client_id`（匿名标识，默认 `anon`）区分数据归属；接登录后换成用户 id。
 
-**用途**：收藏页（替代 `Store.getCardsBySlugs()` + localStorage）。
+#### 2B.1 `GET /api/favorites` ✅ 已实现（Day 18）
 
-**Query 参数**：无（V1 全量返回当前用户全部收藏）
+**用途**：收藏页（替代 `Store.getCardsBySlugs()` + localStorage）；Day 18 也用作写入后的读回验证。
 
-**响应 200**：
+**Query 参数**：`client_id`（string，可选，默认 `anon`）
+
+**响应 200**（实际返回）：
 
 ```json
 {
+  "ok": true,
   "data": [
-    { "slug": "gongsi-quantui", "favorited_at": "2026-09-28T11:00:00.000Z" },
-    { "slug": "guoqi-shipin",   "favorited_at": "2026-09-28T13:20:00.000Z" }
-  ]
+    { "slug": "gongsi-quantui", "favorited_at": "2026-10-03T08:54:01.703641+08:00" }
+  ],
+  "meta": { "total": 1 }
 }
 ```
 
-#### 2B.2 `POST /api/favorites`
+#### 2B.2 `POST /api/favorites` ✅ 已实现（Day 18）
 
-**用途**：收藏 / 取消收藏（替代 `Store.toggleBookmark()`）。
+**用途**：收藏 / 取消收藏（`on: true` 写入，`on: false` 移除，幂等）。
 
 **Body**：
 
 ```json
-{ "slug": "gongsi-quantui", "on": true }
+{ "slug": "gongsi-quantui", "on": true, "client_id": "day18-demo" }
 ```
 
-**响应 200**：`{ "data": { "slug": "gongsi-quantui", "on": true } }`
+| 字段 | 必填 | 校验失败（400，中文报错） |
+|---|---|---|
+| `slug` | 是 | `缺少必填字段 slug（要收藏的卡片短名）`；格式非法 → `slug 格式不对：应为 1-64 位小写字母/数字/连字符` |
+| `on` | 是 | `缺少必填字段 on（true=收藏，false=取消收藏）`；非布尔 → `字段 on 必须是布尔值 true 或 false` |
+| `client_id` | 否 | 超长 → `client_id 太长（≤64）` |
 
-**错误 404**：slug 不存在 → `{ "error": { "code": "CARD_NOT_FOUND", "message": "..." } }`
+**响应 200**（收藏成功）：
+
+```json
+{ "ok": true, "data": { "slug": "gongsi-quantui", "on": true, "favorited_at": "2026-10-03T08:54:01.703641+08:00" } }
+```
+
+**响应 200**（取消成功，幂等）：`{ "ok": true, "data": { "slug": "...", "on": false, "removed": 0或1 } }`
+
+**错误 409（防重复）**：同 `client_id` 重复收藏同一 `slug` → `{ "ok": false, "error": { "code": "ALREADY_FAVORITED", "message": "这张卡片已经收藏过了，请勿重复提交" } }`（数据库 `UNIQUE(client_id, card_slug)` 兜底，业务层捕获 23505 转换）
+
+**错误 404**：`slug` 不在已发布卡片中 → `{ "ok": false, "error": { "code": "CARD_NOT_FOUND", "message": "找不到这个情形：<slug>" } }`
+
+**错误 400**：body 非法 JSON → `{ "code": "INVALID_BODY", "message": "请求体不是合法的 JSON" }`
 
 #### 2B.3 `DELETE /api/favorites/:slug`
 
@@ -223,11 +244,11 @@
 | `GET /api/cards` | ✅ Day 17 已实现 | 表 `cards` + `laws`（Day 16 已建，见 §6） |
 | `GET /api/cards?slug=`（原 `:slug`） | ✅ Day 17 已实现 | 同上 |
 | `GET /api/categories` | ✅ Day 17 已实现 | 表 `cards`（count 由 `category_id` 聚合） |
-| `GET /api/favorites` | Day 18（仅 §8.3 改后） | 收藏表 `favorites`（未建） |
-| `POST /api/favorites` | Day 18 | 同上 |
-| `DELETE /api/favorites/:slug` | Day 18 | 同上 |
-| `GET /api/history` | Day 18 | 历史表 `history`（未建） |
-| `POST /api/history` | Day 18 | 同上 |
+| `GET /api/favorites` | ✅ Day 18 已实现 | 收藏表 `favorites`（Day 18 已建，UNIQUE 防重复） |
+| `POST /api/favorites` | ✅ Day 18 已实现 | 同上 |
+| `DELETE /api/favorites/:slug` | 第 4 周 | 取消收藏已可用 `POST on:false`（幂等）替代 |
+| `GET /api/history` | Day 18+ 待定 | 历史表 `history`（未建；浏览记录仍走 localStorage） |
+| `POST /api/history` | Day 18+ 待定 | 同上 |
 
 ---
 
@@ -283,3 +304,4 @@
 - 2026-09-29 · Day 15：路线 A→B 重审后新增本文档；§1 内容接口上线；§2 用户数据两套方案待勾选。
 - 2026-10-02 · Day 16：新增 §6 数据模型——`cards` + `laws` 两张表已建入 CloudBase PostgreSQL（`db/schema.sql` + `db/seed.sql` 可重复执行，种子 6+11 行）；§3 占位清单更新依赖状态。
 - 2026-10-02 · Day 17：§1.1/§1.2/§1.3 三个读接口**部署并通过真库验证**（响应统一加 `ok` 字段；§1.2 因网关不支持子路径改为 `?slug=` 查询参数形态）；新增 `limit` 参数（加练）；§0 补 CORS 实测结论。数据通道：云函数 → `POST {envId}.api.tcloudbasegateway.com/v1/rdb/exec-pgsql`（参数化 SQL `$1/$2/$3`，默认只读角色；API Key 存函数环境变量 `CB_API_KEY`，不进仓库）。前端 `js/store.js` 内容读切到真 API、失败回落静态 mock（页面代码零改动）。
+- 2026-10-03 · Day 18：§2B.1/§2B.2 读写接口**部署并通过写入/读回真库验证**——`favorites` 表建好（`UNIQUE(client_id, card_slug)` 防重复，见 `db/schema.sql`）；POST 中文校验（缺字段 400 / 重复 409 / 不存在 404）；`on:false` 幂等取消替代 DELETE；新增可选 `client_id` 参数（V1 匿名标识）；服务端 JSON 日志（加练）。前端收藏仍走 localStorage，切换留 V2。

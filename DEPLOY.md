@@ -201,3 +201,26 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
    角色名带实例后缀，先查 `pg_roles`。
 5. 本地直调云函数代码冒烟（Node 直跑 index.js + 真 API Key）能在部署前抓住 90% 的问题，
    Day 17 的 9 个用例全靠这个提前跑通。
+
+---
+
+## 13. Day 18 POST 写接口上线（2026-10-03）
+
+| 项 | 值 |
+|---|---|
+| 新云函数 | `apiFavorites`（/api/favorites：GET 列表 + POST 收藏/取消） |
+| 新表 | `favorites`：`id` / `client_id` / `card_slug`(FK→cards, CASCADE) / `created_at`，**`UNIQUE(client_id, card_slug)` 防重复**（已进 db/schema.sql） |
+| 写权限 | exec-pgsql 传 `role: "cloudbase_postgres"`（只读角色无 INSERT/DELETE）；GET 走默认只读角色 |
+| 校验 | 全中文：缺 slug/on → 400 `MISSING_FIELD`；格式错 → 400 `INVALID_PARAM`；slug 不存在 → 404；重复收藏 → 409 `ALREADY_FAVORITED`（捕获 23505） |
+| 加练 | 服务端 JSON 日志：每请求一行 `{t, fn, action, ...}`，云函数日志页可过滤 |
+| 截图 | `day18-post-success.png`（POST 返回 `{ok:true,...}`）、`day18-db-row.png`（控制台 SELECT favorites 两行） |
+
+### 踩坑记录（Day 18 新增）
+
+1. **exec-pgsql 成功响应是顶层数组**（`[{...}]`），不是 `{data:{Rows}}`——Day 17 的 cards 函数解析对了，
+   新函数想当然套 `tcb db execute --json` 的形状（`data.Rows`）直接 500。**以实际 curl 为准，别猜。**
+2. **云函数运行时 Nodejs16.13 没有全局 fetch**——本地 Node 22 直调冒烟用 fetch 能过，部署后必挂；
+   必须用 `https.request`（Day 17 cards 函数同款）。本地冒烟要用 `node --version` 对齐运行时心智。
+3. **Edge 最小化时窗口矩形是 (-16000,-16000)**，按面积过滤会把它漏掉；截图脚本要先 `IsIconic` →
+   `ShowWindow(SW_RESTORE)` → 重查 `GetWindowRect`（还原后坐标会变）。
+4. profile 重启后首次进控制台会先跳登录页——**别急着喊用户扫码**，等 10–20s 常会自动跳回（登录态其实在）。
