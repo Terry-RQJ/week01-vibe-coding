@@ -252,3 +252,57 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 1. **CloudBase 测试域名中间页会吃掉 API 截图**——浏览器首次访问每个路径都有「页面访问提示」，要先 CDP 点「确定访问」再截（点过一次按域记住，换路径还会再弹）。
 2. `cloudbaserc.json` 被 Node `JSON.stringify` 重写后只是换行符变了也会整文件 M——**先 `git diff` 确认无实质差异再 checkout 还原**，别把密钥注入轮次的格式化噪声提交进仓库。
 3. 回归对比必须归一化动态字段：/health 的 `time`、favorites 的 `created_at`/`favorited_at`，否则永远 DIFF。
+
+---
+
+## 15. Day 20 前端真数据公网化 + 检查台（2026-10-03）
+
+### CORS 实测结论（今天最重要的一条）
+
+用 curl 带不同 Origin 打公网 API，实测 CloudBase HTTP 网关是**内置白名单**机制：
+
+| 请求 Origin | 网关响应 |
+|---|---|
+| `https://…-1497985433.tcloudbaseapp.com`（同环境静态托管） | ✅ `access-control-allow-origin: <精确回显该域名>` + allow-credentials |
+| `http://localhost:8000` / `http://127.0.0.1:8000`（本地开发） | ✅ 同上（网关对 localhost 网段放行，方便本地调试） |
+| `https://evil.example.com`（陌生域名） | ❌ **一个 CORS 头都不回**（浏览器直接拦截） |
+
+- **全链路没有 `*`**：函数不设 CORS 头（Day 17 教训，设了会被拼成 `origin,*` 双值）+ 网关白名单自动回单值。§4 的「只允许自己域名、禁 *」要求实测已满足，无需任何代码改动。
+- POST 预检（OPTIONS + Access-Control-Request-Method）同样只对自己域名 + localhost 放行。
+- 「跨域怎么认出问题在哪」的方法论：先 `curl -D - -H "Origin: …"` 看响应头里有没有 `access-control-allow-origin`——有但值不对 = 配置错；完全没有 = 白名单拦截；`origin,*` 双值 = 函数和网关各设了一次。
+
+### 检查台（新增 check.html，公网可访问）
+
+- `https://…tcloudbaseapp.com/check.html`：①健康状态 ②核心表真实数据（cards 6 行表格 + categories 聚合）③写入测试（收藏 200 → 重复 409 → 取消 removed:1，每步自动 GET 读回）④「最后更新时间」随每次数据刷新更新（加练）。
+- 检查台直连公网 API（不走 Store 的 mock 回落），F12 Network 可见请求全是 `…app.tcloudbase.com/api` 公网地址。
+
+### 逐项验证清单（全部实测通过）
+
+| # | 检查项 | 结果 |
+|---|---|---|
+| 1 | 4 个云函数公网可用（health/cards/categories/favorites） | ✅（Day 19 回归脚本同款 21 项） |
+| 2 | CORS 白名单：自己域名放行 / 陌生域拦截 / 无 `*` | ✅（上表实测） |
+| 3 | 本地接线：localhost:8000 页面内 fetch 公网 API 成功读到数据 | ✅（`corsOk:true`，6 类计数） |
+| 4 | 公网首页展示数据库真实数据（6 张卡） | ✅ |
+| 5 | 控制台改数据刷新跟着变：UPDATE gongsi-quantui 标题加【Day20 验证】→ 公网首页刷新出现 → 还原 | ✅ |
+| 6 | F12 请求地址是公网地址（performance resource 记录） | ✅ |
+| 7 | 检查台三板块 + 写入测试 + 最后更新时间 | ✅ |
+| 8 | 移动端 375px 无横向溢出（检查台） | ✅ scrollWidth=375 |
+| 9 | 密钥无硬编码：`.env` 不入库、`cloudbaserc.json` envVariables 空、`git grep eyJ` 零命中 | ✅ |
+
+### 把链接发给同伴的验证说明
+
+1. 发这个链接：`https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/`
+2. 对方首次打开会先看到腾讯云「页面访问提示」（测试域名统一行为）→ 等按钮倒计时结束点「确定访问」（有时有两层，再点一次）
+3. 请对方看：首页 6 张「最新情形」卡片能正常显示 → 点任意卡片能进详情 → 搜索「押金」有结果
+4. 检查台 `…/check.html`：三个板块都应有绿色/正常状态；点「测试收藏」返回 200，再点一次变 409
+5. 若对方打开白屏：多半停在中间页没点「确定访问」，或网络拦截了 `*.tcloudbase.com`，换个网络再试
+
+### 最可能的卡点与处理（提前列）
+
+| 卡点 | 症状 | 处理 |
+|---|---|---|
+| CORS | F12 Console 报 `Failed to fetch`，Network 里请求红色 | 确认函数没自设 CORS 头（设了会双值）；确认访问域名是静态托管域名（陌生域名被白名单拦是预期行为） |
+| 环境变量 | 接口 500 `DB_NOT_CONFIGURED` | `CB_API_KEY` 只存在函数环境变量里，部署时经 cloudbaserc.json 注入后**立即还原**；别把 Key 写进任何入库文件 |
+| 构建报错 | 部署后页面 404 / 白屏 | dist 是手工同步的静态拷贝：新文件必须同时进根目录和 dist/（今天 check.html 就多拷了一次到 dist 根，已清理）；CDN 缓存约几分钟，可 `curl -H "Cache-Control: no-cache"` 验证 |
+| 测试域名中间页 | 打开是「页面访问提示」 | 等倒计时 → 「确定访问」（可能两层）；点过一次按浏览器记忆 |

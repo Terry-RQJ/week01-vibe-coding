@@ -717,3 +717,56 @@ a:hover { text-decoration: underline; }
   .search-box { order: 5; flex-basis: 100%; max-width: none; }
   .nav-link { padding: 6px 8px; font-size: 13px; }
 }
+
+/* ========== Day 20：检查台（check.html）========== */
+.check-block {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.check-block h2 { font-size: 17px; margin: 0 0 var(--space-2); color: var(--bamboo-dark, #2C5A3D); }
+.check-block h2 code { font-size: 13px; color: var(--color-ink-gray, #6B7280); }
+.check-updated { font-size: 13px; color: var(--color-ink-gray, #6B7280); margin: 0; }
+.check-note { font-size: 13px; color: var(--color-fg-soft); line-height: 1.7; margin: 0 0 var(--space-2); }
+.check-note code { font-size: 12px; background: var(--bamboo-pale, #EDF3EC); padding: 1px 5px; border-radius: 4px; }
+.check-status { font-size: 14px; margin: 0 0 var(--space-2); }
+.check-status.is-ok { color: var(--bamboo-dark, #2C5A3D); font-weight: 600; }
+.check-status.is-bad { color: var(--color-ink-red, #B4232A); font-weight: 600; }
+.check-cats { list-style: none; padding: 0; margin: 0 0 var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.check-cats li { font-size: 13px; background: var(--bamboo-pale, #EDF3EC); border-radius: 999px; padding: 4px 12px; }
+.check-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.check-table th, .check-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--color-border); }
+.check-table th { color: var(--color-ink-gray, #6B7280); font-weight: 500; white-space: nowrap; }
+.check-table code { font-size: 12px; color: var(--color-ink-gray, #6B7280); }
+.check-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.check-form label { font-size: 13px; color: var(--color-fg-soft); }
+.check-form select, .check-form input {
+  font: inherit; font-size: 13px; padding: 6px 10px;
+  border: 1px solid var(--color-border); border-radius: 8px; background: #fff;
+}
+.check-form select { max-width: 320px; }
+.check-form input { width: 130px; }
+.check-btn {
+  font: inherit; font-size: 14px; cursor: pointer;
+  padding: 8px 18px; border-radius: 999px; border: 1px solid #22452E;
+  background: #2C5A3D; color: #F2F7EF;
+  transition: transform .12s ease, box-shadow .18s ease;
+}
+.check-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(24, 58, 37, 0.18); }
+.check-btn:active { transform: scale(0.97); }
+.check-btn:focus-visible { outline: 3px solid var(--color-gold-warm); outline-offset: 2px; }
+.check-btn:disabled { opacity: 0.55; cursor: wait; transform: none; box-shadow: none; }
+.check-result {
+  font-size: 12.5px; line-height: 1.6; margin: 0; white-space: pre-wrap; word-break: break-all;
+  background: var(--bamboo-pale, #EDF3EC); border-radius: 8px; padding: var(--space-3);
+  max-height: 320px; overflow: auto;
+}
+.check-result.is-ok { border-left: 4px solid var(--bamboo-mid, #4A8A5C); }
+.check-result.is-bad { border-left: 4px solid var(--color-ink-red, #B4232A); }
+@media (max-width: 640px) {
+  .check-form select { max-width: 100%; flex-basis: 100%; }
+  .check-table th:nth-child(3), .check-table td:nth-child(3) { display: none; } /* 手机端藏分类列防溢出 */
+}

@@ -297,6 +297,8 @@
 
 静态托管域（`*.tcloudbaseapp.com`）与 API 网关域（`*.ap-shanghai.app.tcloudbase.com`）不同源，浏览器 fetch 必须有 CORS 头。**Day 17 实测结论**：HTTP 网关按请求 Origin 自动回 `Access-Control-Allow-Origin`（单值，正确）——但前提是**云函数自己不要设这个头**，否则网关把 Origin 和函数值拼成 `origin,*` 双值，浏览器直接拒绝（`Failed to fetch`）。Day 19 前端域名迁移时如遇问题再回来调网关 OPA/白名单。
 
+**Day 20 实测补充（白名单机制确认）**：带不同 Origin 逐个 curl 实测——同环境静态托管域名与 `localhost`/`127.0.0.1`（本地调试）网关精确回显 `allow-origin: <该域名>` + `allow-credentials: true`；陌生域名（如 `evil.example.com`）**一个 CORS 头都不回**，浏览器直接拦截；POST 预检（OPTIONS）同样只对白名单放行。**全链路无 `*` 通配符**，满足「只允许自己域名」要求，无需任何代码改动。
+
 ---
 
 ## 5. 变更日志

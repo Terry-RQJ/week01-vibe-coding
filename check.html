@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="法律小科普轻站：检查台。健康状态、核心表真实数据、写入测试一站式检查。">
+  <meta name="theme-color" content="#1B3524">
+  <meta name="robots" content="noindex">
+  <title>检查台 · 法律小科普轻站</title>
+  <link rel="stylesheet" href="./css/tokens.css">
+  <link rel="stylesheet" href="./css/global.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="./index.html" class="brand" aria-label="法律小科普轻站 回到首页">🎋 法律小科普轻站</a>
+      <a href="./index.html" class="nav-link" aria-label="首页">首页</a>
+      <a href="./bookmarks.html" class="nav-link" aria-label="我的收藏">我的收藏</a>
+      <a href="./history.html" class="nav-link" aria-label="浏览记录">浏览记录</a>
+    </div>
+  </header>
+
+  <main style="position: relative; z-index: 1;">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="面包屑导航">
+        <a href="./index.html">首页</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">检查台</span>
+      </nav>
+
+      <section aria-labelledby="check-h" style="padding-top: var(--space-3);">
+        <div class="toolbar">
+          <h1 id="check-h" class="section-title">检查台</h1>
+          <p id="check-updated" class="check-updated" role="status" aria-live="polite">最后更新：尚未刷新</p>
+        </div>
+        <p class="check-note">三个检查项都直连公网 API（CloudBase 云函数 → PostgreSQL）。
+          打开 F12 → Network，能看到本页发出的请求都是
+          <code>…app.tcloudbase.com/api</code> 公网地址。</p>
+
+        <!-- ① 健康状态 -->
+        <div class="check-block" id="block-health">
+          <h2>① 健康状态 <code>GET /api/health</code></h2>
+          <p class="check-status" id="health-status" aria-live="polite">检查中…</p>
+        </div>
+
+        <!-- ② 核心表真实数据 -->
+        <div class="check-block" id="block-data">
+          <h2>② 核心表真实数据 <code>GET /api/cards</code> · <code>GET /api/categories</code></h2>
+          <p class="check-status" id="data-status" aria-live="polite">加载中…</p>
+          <ul class="check-cats" id="cat-list"></ul>
+          <table class="check-table">
+            <caption class="sr-only">cards 表已发布卡片（来自数据库）</caption>
+            <thead>
+              <tr><th scope="col">slug</th><th scope="col">标题</th><th scope="col">分类</th><th scope="col">发布日期</th></tr>
+            </thead>
+            <tbody id="card-rows"></tbody>
+          </table>
+        </div>
+
+        <!-- ③ 写入测试入口 -->
+        <div class="check-block" id="block-write">
+          <h2>③ 写入测试 <code>POST /api/favorites</code></h2>
+          <p class="check-note">选一张卡片点「收藏」→ 数据库 favorites 表写入一行；
+            再点一次 → 409 防重复；「取消」→ 删除该行（幂等）。</p>
+          <div class="check-form">
+            <label for="write-slug">卡片：</label>
+            <select id="write-slug"></select>
+            <label for="write-client">client_id：</label>
+            <input id="write-client" type="text" value="day20-check" maxlength="64">
+            <button type="button" class="check-btn" id="btn-fav">测试收藏</button>
+            <button type="button" class="check-btn" id="btn-unfav">测试取消</button>
+          </div>
+          <pre class="check-result" id="write-result">（还没写入过）</pre>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p>法律小科普轻站 · 检查台 —— 数据来自 CloudBase PostgreSQL，仅供课程学习验证。</p>
+    </div>
+  </footer>
+
+  <script src="./js/ui.js"></script>
+  <script src="./js/page-check.js"></script>
+</body>
+</html>
