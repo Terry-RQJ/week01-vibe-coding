@@ -5,11 +5,36 @@
   python db/exec.py seed     # 执行 db/seed.sql（先删后插，可重复）
   python db/exec.py verify   # select 验证：每张核心表行数 + 5 行样例 + JOIN
 """
-import subprocess, sys, os
+import subprocess, sys, os, glob
 
 ENV = "rqj-2006-d0gl1ael531a243a1"
 BASE = os.path.dirname(os.path.abspath(__file__))
-TCB = r"C:\Users\Administrator\.workbuddy\binaries\node\versions\22.22.2\tcb.cmd"
+
+
+def _find_tcb():
+    """探测 tcb.cmd 位置（Day 22 改：原来写死版本号，Node 目录升级后会失效）。
+    顺序：环境变量 TCB_CLI → PATH（shutil.which）→ 各 node versions 目录通配。
+    """
+    env = os.environ.get("TCB_CLI")
+    if env and os.path.isfile(env):
+        return env
+    import shutil
+    found = shutil.which("tcb") or shutil.which("tcb.cmd")
+    if found:
+        return found
+    patterns = [
+        r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\tcb.cmd",
+        r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\node_modules\.bin\tcb.cmd",
+        r"C:\Users\Administrator\AppData\Roaming\npm\tcb.cmd",
+    ]
+    for p in patterns:
+        hits = glob.glob(p)
+        if hits:
+            return hits[-1]  # 版本目录多个时取最后（通常最新）
+    return "tcb"  # 兜底：交给系统 PATH，失败时报错更直观
+
+
+TCB = _find_tcb()
 
 def _flatten(sql):
     """去掉 -- 注释、换行压成空格。

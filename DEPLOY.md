@@ -306,3 +306,44 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 | 环境变量 | 接口 500 `DB_NOT_CONFIGURED` | `CB_API_KEY` 只存在函数环境变量里，部署时经 cloudbaserc.json 注入后**立即还原**；别把 Key 写进任何入库文件 |
 | 构建报错 | 部署后页面 404 / 白屏 | dist 是手工同步的静态拷贝：新文件必须同时进根目录和 dist/（今天 check.html 就多拷了一次到 dist 根，已清理）；CDN 缓存约几分钟，可 `curl -H "Cache-Control: no-cache"` 验证 |
 | 测试域名中间页 | 打开是「页面访问提示」 | 等倒计时 → 「确定访问」（可能两层）；点过一次按浏览器记忆 |
+
+---
+
+## 16. Day 22 PATCH + DELETE：改/删闭环 + 软删除 + 二次确认（2026-10-07）
+
+### 这天动了什么（四层各一处）
+
+| 层 | 改动 | 要点 |
+|---|---|---|
+| 数据库 | `favorites` 补 `note`（≤200，默认空）与 `is_deleted`（默认 false）两列；唯一约束 `UNIQUE(client_id, card_slug)` 升级为**部分唯一索引** `uq_favorites_active ... WHERE is_deleted = false`（迁移在 `db/schema.sql` 末尾「Day 22 追加」段，云端已执行） | 不改部分索引的话：软删后再收藏会撞 23505 被报成「已收藏」——软删除必须配部分唯一索引，这是今天最重要的一个坑 |
+| 云函数 | `apiFavorites` 从两方法扩到四方法：GET / POST / **PATCH（只许改 note）** / **DELETE（软删除）** | 写操作显式提权 `cloudbase_postgres`（只读角色写不了）；id 走 `?id=` 查询参数（网关子路径会归一化，Day 17 教训） |
+| 前端 | `check.html` 新增 ④ 修改与删除板块；删除走**原生 `<dialog>` 二次确认**（确认动作在发请求之前，自带焦点陷阱 + Esc 关闭） | 已同步 dist 并重新 `tcb hosting deploy`，公网检查台与本页一致 |
+| 文档 | `api-contract.md` §2B.3/§2B.4 标「已实现 Day 22」；§3 占位清单同步 | GET / POST 响应补 `id`（/ `note`），供按 id 操作 |
+
+### 验证清单（全部实测通过）
+
+| # | 检查项 | 结果 |
+|---|---|---|
+| 1 | 本地直调冒烟 13 项（mock event，部署前跑） | ✅ 抓出并修掉「校验顺序」bug（见下卡点） |
+| 2 | 线上四类闭环：POST 拿 id → SELECT（note=""）→ PATCH 200 → SELECT（note=新值）→ DELETE 200 → GET 不再返回 → SELECT（is_deleted=true，行还在可找回） | ✅（`docs/day22-prod-verify.txt` 全记录） |
+| 3 | 错误分支：PATCH/DELETE 不存在的 id → 404 `FAVORITE_NOT_FOUND`（中文带 id）；PATCH 传 `card_slug` → 400 白名单报错；缺 id / id 非正整数 → 400 | ✅ |
+| 4 | 二次确认自动化（CDP 6 步）：点「删除」→ 对话框弹出 → **点「取消」→ 列表条数不变（拦截证明）** → 再点删除 → 确认 → DELETE 200 → 列表刷新为空 | ✅ |
+| 5 | 软删后再收藏：`POST on:true` 返回 200 新 id（部分唯一索引生效） | ✅ |
+| 6 | 交付截图两张：`day22-shot-patch.png`（改前「无备注」/ 改后 HTTP 200 + 新值对比）、`day22-shot-delete.png`（二次确认框 → DELETE 200 soft:true → 重新 GET 该条消失） | ✅ |
+| 7 | 密钥安全：部署注入 `CB_API_KEY` → `git checkout -- cloudbaserc.json` 立即还原 → 四个函数 envVariables 全空 | ✅ |
+
+### 交付物（本日新增文件）
+
+- `functions/api/favorites/index.js` / `favoritesRepository.js`（四方法 + 软删除）
+- `db/schema.sql` 末尾 Day 22 追加段（note / is_deleted / 部分唯一索引）
+- `check.html` ④ 板块 + 确认对话框；`js/page-check.js` ④ 逻辑；`css/global.css` 配套样式（均同步 dist）
+- `day22-shot-patch.png` / `day22-shot-delete.png`
+- `api-contract.md` / 本文档更新
+
+### 卡点与处理
+
+| 卡点 | 症状 | 处理 |
+|---|---|---|
+| PATCH 校验顺序 | 传 `{card_slug:'hack'}`（没传 note）时报「缺少必填字段 note」，提示误导 | **先查未知字段白名单，再查 note 必填**；修后报「本接口只能改 note，不支持改：card_slug」 |
+| tcb CLI 丢失 | 环境重置后 `tcb` 命令没了，`db/exec.py` FileNotFoundError | 重装 `@cloudbase/cli`；给 `db/exec.py` 加自动探测（`TCB_CLI` 环境变量 → PATH → 常见安装路径 glob），一劳永逸 |
+| 唯一约束 × 软删除 | 软删后再收藏 23505「已收藏」 | 唯一约束改部分唯一索引 `WHERE is_deleted = false`（迁移含 `DROP CONSTRAINT` + `CREATE UNIQUE INDEX`） |

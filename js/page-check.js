@@ -152,26 +152,177 @@
     }).then(function (r) {
       setBusy(btn, false);
       showWriteResult((on ? "收藏" : "取消") + " " + select.value, r);
-      // 写完顺带读回列表（GET），证明写入可见
+      // 写完顺带读回列表（GET），证明写入可见；④ 的列表也同步刷新
       return request("/favorites?client_id=" + encodeURIComponent(clientId)).then(function (r2) {
         var el = document.getElementById("write-result");
         if (el && r2.ok) {
           var slugs = (r2.body.data || []).map(function (f) { return f.slug; }).join(", ") || "（空）";
           el.textContent += "\n\nGET 读回收藏列表 → HTTP " + r2.status + "，当前收藏：" + slugs;
         }
+        return loadFavList();
       });
     }).catch(function () { setBusy(btn, false); });
+  }
+
+  /* ---------- ④ 修改与删除（Day 22）----------
+   * PATCH /api/favorites?id=N   改备注（唯一可改字段）
+   * DELETE /api/favorites?id=N  软删除 —— 前端必须先过二次确认对话框
+   * 为什么要二次确认：删除比新增更容易出事——新增错了顶多多一条，删错了数据就没了。
+   * 确认放在「发出删除请求之前」这一层，是前端能加的第一道闸。
+   */
+
+  var pendingDeleteId = null;   // 待确认删除的记录 id
+  var lastFocused = null;       // 打开对话框前的焦点，关闭后还回去（无障碍）
+
+  function currentClient() {
+    var el = document.getElementById("write-client");
+    return (el && el.value.trim()) || "day22-check";
+  }
+
+  function showModifyResult(title, r) {
+    var el = document.getElementById("modify-result");
+    if (!el) return;
+    el.textContent = title + " → HTTP " + r.status + "\n" + JSON.stringify(r.body, null, 2);
+    el.className = "check-result " + (r.ok ? "is-ok" : "is-bad");
+    touchUpdated();
+  }
+
+  /** 拉收藏列表并渲染（每条带 改备注 / 删除 两个按钮） */
+  function loadFavList() {
+    var ul = document.getElementById("fav-list");
+    var clientId = currentClient();
+    return request("/favorites?client_id=" + encodeURIComponent(clientId)).then(function (r) {
+      if (!ul) return r;
+      ul.innerHTML = "";
+      if (!r.ok || !r.body || !r.body.ok) {
+        var li = document.createElement("li");
+        li.className = "fav-empty";
+        li.textContent = "列表加载失败 · HTTP " + r.status;
+        ul.appendChild(li);
+        return r;
+      }
+      var rows = r.body.data || [];
+      if (!rows.length) {
+        var empty = document.createElement("li");
+        empty.className = "fav-empty";
+        empty.textContent = "（还没有收藏，先用上面 ③ 收一条）";
+        ul.appendChild(empty);
+        return r;
+      }
+      rows.forEach(function (f) {
+        var li = document.createElement("li");
+        li.className = "fav-item";
+        li.dataset.id = String(f.id);
+
+        var info = document.createElement("span");
+        info.className = "fav-info";
+        info.innerHTML = '<b>#' + esc(String(f.id)) + "</b> <code>" + esc(f.slug) + "</code>" +
+          ' <span class="fav-note">' + (f.note ? esc(f.note) : "（无备注）") + "</span>";
+
+        var patchBtn = document.createElement("button");
+        patchBtn.type = "button";
+        patchBtn.className = "check-btn check-btn-sm";
+        patchBtn.textContent = "改备注";
+        patchBtn.addEventListener("click", function () { patchNote(f.id); });
+
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "check-btn check-btn-sm check-btn-danger";
+        delBtn.textContent = "删除";
+        delBtn.setAttribute("aria-label", "删除收藏 #" + f.id + "（会弹出二次确认）");
+        delBtn.addEventListener("click", function () { askDelete(f.id, f.slug); });
+
+        li.appendChild(info);
+        li.appendChild(patchBtn);
+        li.appendChild(delBtn);
+        ul.appendChild(li);
+      });
+      return r;
+    });
+  }
+
+  /** PATCH：改这条记录的备注 */
+  function patchNote(id) {
+    var noteEl = document.getElementById("edit-note");
+    var note = noteEl ? noteEl.value : "";
+    if (!note.trim()) {
+      showModifyResult("改备注（缺内容）", {
+        status: 0, ok: false,
+        body: { ok: false, error: { code: "EMPTY_NOTE", message: "请先在「新备注」输入框里填内容，再点这条记录的「改备注」" } }
+      });
+      if (noteEl) noteEl.focus();
+      return;
+    }
+    request("/favorites?id=" + encodeURIComponent(String(id)), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note: note, client_id: currentClient() })
+    }).then(function (r) {
+      showModifyResult("改备注 #" + id + ' → "' + note + '"', r);
+      return loadFavList();
+    });
+  }
+
+  /** 打开二次确认（不直接删） */
+  function askDelete(id, slug) {
+    var dlg = document.getElementById("confirm-dialog");
+    var desc = document.getElementById("confirm-desc");
+    if (!dlg) { doDelete(id, slug); return; }   // 极端降级：没有 dialog 元素就直接删
+    pendingDeleteId = { id: id, slug: slug };
+    if (desc) desc.textContent = "即将删除：#" + id + " " + slug + "。此操作不可撤销（可从数据库找回）。";
+    lastFocused = document.activeElement;
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "");
+    var ok = document.getElementById("confirm-ok");
+    if (ok) ok.focus();
+  }
+
+  function closeDialog() {
+    var dlg = document.getElementById("confirm-dialog");
+    if (!dlg) return;
+    if (typeof dlg.close === "function") dlg.close();
+    else dlg.removeAttribute("open");
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  }
+
+  /** 真正发 DELETE */
+  function doDelete(id, slug) {
+    request("/favorites?id=" + encodeURIComponent(String(id)) + "&client_id=" + encodeURIComponent(currentClient()), {
+      method: "DELETE"
+    }).then(function (r) {
+      showModifyResult("删除 #" + id + " " + slug, r);
+      return loadFavList();
+    });
   }
 
   /* ---------- 启动 ---------- */
 
   document.addEventListener("DOMContentLoaded", function () {
     checkHealth();
-    checkData();
+    checkData().then(loadFavList);
 
     var btnFav = document.getElementById("btn-fav");
     var btnUnfav = document.getElementById("btn-unfav");
     if (btnFav) btnFav.addEventListener("click", function () { writeTest(true); });
     if (btnUnfav) btnUnfav.addEventListener("click", function () { writeTest(false); });
+
+    var btnRefresh = document.getElementById("btn-refresh-fav");
+    if (btnRefresh) btnRefresh.addEventListener("click", function () { loadFavList(); });
+
+    // 确认对话框：两个按钮 + Esc（原生 dialog 自带 Esc，这里只处理点击）
+    var okBtn = document.getElementById("confirm-ok");
+    var cancelBtn = document.getElementById("confirm-cancel");
+    if (okBtn) okBtn.addEventListener("click", function () {
+      var t = pendingDeleteId;
+      pendingDeleteId = null;
+      closeDialog();
+      if (t) doDelete(t.id, t.slug);
+    });
+    if (cancelBtn) cancelBtn.addEventListener("click", function () {
+      pendingDeleteId = null;
+      closeDialog();
+    });
+    var dlg = document.getElementById("confirm-dialog");
+    if (dlg) dlg.addEventListener("close", function () { pendingDeleteId = null; });
   });
 })();

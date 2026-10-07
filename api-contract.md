@@ -154,20 +154,24 @@
 > **Day 18 状态：后端能力已上线**（`favorites` 表 + `apiFavorites` 云函数已部署并完成写入/读回验证）。
 > 前端 `js/store.js` 收藏仍走 localStorage（§8.3 未正式重审，切换留到 V2）。
 > V1 无登录态，新增可选参数 `client_id`（匿名标识，默认 `anon`）区分数据归属；接登录后换成用户 id。
+> **Day 22 状态：改 / 删两接口上线，增删改查四类闭环**。`favorites` 表补 `note`（≤200，默认空）与
+> `is_deleted`（默认 false）两列；**删除一律改软删除**（只置标记不删行，所有读自动跳过已删行），
+> 唯一约束升级为部分唯一索引 `uq_favorites_active ... WHERE is_deleted = false`（软删后同组合可重新收藏）。
 
-#### 2B.1 `GET /api/favorites` ✅ 已实现（Day 18）
+#### 2B.1 `GET /api/favorites` ✅ 已实现（Day 18；Day 22 响应补 id / note）
 
-**用途**：收藏页（替代 `Store.getCardsBySlugs()` + localStorage）；Day 18 也用作写入后的读回验证。
+**用途**：收藏页（替代 `Store.getCardsBySlugs()` + localStorage）；Day 18 也用作写入后的读回验证；
+Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**已软删除的行不返回。**
 
 **Query 参数**：`client_id`（string，可选，默认 `anon`）
 
-**响应 200**（实际返回）：
+**响应 200**（实际返回，Day 22 起每项带 `id` 与 `note`）：
 
 ```json
 {
   "ok": true,
   "data": [
-    { "slug": "gongsi-quantui", "favorited_at": "2026-10-03T08:54:01.703641+08:00" }
+    { "id": 26, "slug": "gongsi-quantui", "note": "", "favorited_at": "2026-10-03T08:54:01.703641+08:00" }
   ],
   "meta": { "total": 1 }
 }
@@ -189,13 +193,14 @@
 | `on` | 是 | `缺少必填字段 on（true=收藏，false=取消收藏）`；非布尔 → `字段 on 必须是布尔值 true 或 false` |
 | `client_id` | 否 | 超长 → `client_id 太长（≤64）` |
 
-**响应 200**（收藏成功）：
+**响应 200**（收藏成功；Day 22 起带 `id`，供 2B.3/2B.4 按 id 操作）：
 
 ```json
-{ "ok": true, "data": { "slug": "gongsi-quantui", "on": true, "favorited_at": "2026-10-03T08:54:01.703641+08:00" } }
+{ "ok": true, "data": { "id": 26, "slug": "gongsi-quantui", "on": true, "favorited_at": "2026-10-03T08:54:01.703641+08:00" } }
 ```
 
 **响应 200**（取消成功，幂等）：`{ "ok": true, "data": { "slug": "...", "on": false, "removed": 0或1 } }`
+（Day 22 起「取消」底层同样是软删除：命中行置 `is_deleted = true`，行不物理删除。）
 
 **错误 409（防重复）**：同 `client_id` 重复收藏同一 `slug` → `{ "ok": false, "error": { "code": "ALREADY_FAVORITED", "message": "这张卡片已经收藏过了，请勿重复提交" } }`（数据库 `UNIQUE(client_id, card_slug)` 兜底，业务层捕获 23505 转换）
 
@@ -203,13 +208,63 @@
 
 **错误 400**：body 非法 JSON → `{ "code": "INVALID_BODY", "message": "请求体不是合法的 JSON" }`
 
-#### 2B.3 `DELETE /api/favorites/:slug`
+#### 2B.3 `PATCH /api/favorites?id=` ✅ 已实现（Day 22）
 
-**用途**：取消收藏（与 POST 等价，但 RESTful）。
+**用途**：修改一条收藏的备注。V1 **唯一可改字段是 `note`**（白名单校验，其余字段一律拒绝）；
+按 id 操作，id 来自 2B.1 的列表。
 
-**响应 200**：`{ "data": { "slug": "...", "on": false } }`
+> ⚠️ 形态：id 走查询参数 `?id=` 而不是路径 `/api/favorites/:id` —— CloudBase HTTP 网关会把子路径
+> 归一化到函数根路径（Day 17 踩过，见 DEPLOY.md §12）。
 
-#### 2B.4 `GET /api/history`
+**Query 参数**：`id`（int，required）
+
+**Body**：
+
+```json
+{ "note": "劳动仲裁时效是一年", "client_id": "day22-check" }
+```
+
+| 字段 | 必填 | 校验失败（400，中文报错） |
+|---|---|---|
+| `id`（query） | 是 | `缺少必填参数 id（要操作的收藏记录编号）`；非正整数 → `id 格式不对：应为正整数` |
+| 未知字段 | — | body 里出现 `note` / `client_id` 以外的键 → `本接口只能改 note，不支持改：<字段名>`（**先查白名单再查必填**，报错更精准——顺序反了会误报「缺 note」） |
+| `note` | 是 | `缺少必填字段 note（要改成什么备注）`；非字符串 → `字段 note 必须是字符串`；超长 → `备注太长（≤200 字）` |
+| `client_id` | 否 | 默认 `anon`；超长 → `client_id 太长（≤64）`。归属校验：别人的 id 改不了你的记录（查不到 = 404） |
+
+**响应 200**（实际返回）：
+
+```json
+{ "ok": true, "data": { "id": 26, "slug": "gongsi-quantui", "note": "劳动仲裁时效是一年", "favorited_at": "2026-10-07T23:50:39.794065+08:00" } }
+```
+
+**错误 404**：id 不存在 / 已软删 / 不是本人的 → `{ "ok": false, "error": { "code": "FAVORITE_NOT_FOUND", "message": "找不到这条收藏记录（id=99999999），可能已被删除" } }`
+
+#### 2B.4 `DELETE /api/favorites?id=` ✅ 已实现（Day 22）
+
+**用途**：删除一条收藏（按 id）。**软删除**：只把 `is_deleted` 置 `true`，行留在数据库里可找回；
+之后 2B.1 的 GET 不再返回该条（所有读都带 `is_deleted = false`）。
+
+> 原占位设计是 RESTful 子路径 `DELETE /api/favorites/:slug` —— 网关不支持子路径（Day 17 结论），
+> 且 Day 22 需求定为「按 id 操作」，落地为 `?id=` 形态。它与 2B.2 的 `POST on:false` 并存、职责不同：
+> `on:false` = 「我不想收藏这张卡了」（按 slug、幂等、前端常规取消）；`DELETE ?id=` = 「删掉这条记录」
+> （按 id、有 404 语义、检查台演示删改闭环用）。
+
+**Query 参数**：`id`（int，required）+ `client_id`（string，可选，默认 `anon`，归属校验）
+
+**响应 200**（实际返回；`soft:true` 明示这是软删除）：
+
+```json
+{ "ok": true, "data": { "id": 26, "slug": "gongsi-quantui", "deleted": true, "soft": true } }
+```
+
+**错误 404**：同 2B.3（`FAVORITE_NOT_FOUND`，中文带 id）。
+
+> **前端约定**：调用 DELETE 前必须过**二次确认对话框**（check.html ④ 板块，原生 `<dialog>` 实现，
+> 确认动作放在「发出删除请求之前」）。数据库侧配套：部分唯一索引
+> `uq_favorites_active ON favorites(client_id, card_slug) WHERE is_deleted = false`，
+> 软删后同 (client_id, slug) 可重新收藏（2B.2 不再被 23505 拦成「已收藏」）。
+
+#### 2B.5 `GET /api/history`
 
 **用途**：浏览记录页（替代 `Store.getHistory()`）。
 
@@ -226,7 +281,7 @@
 }
 ```
 
-#### 2B.5 `POST /api/history`
+#### 2B.6 `POST /api/history`
 
 **用途**：浏览详情时自动记录（替代 `Store.addHistory()`）。
 
@@ -246,7 +301,8 @@
 | `GET /api/categories` | ✅ Day 17 已实现 | 表 `cards`（count 由 `category_id` 聚合） |
 | `GET /api/favorites` | ✅ Day 18 已实现 | 收藏表 `favorites`（Day 18 已建，UNIQUE 防重复） |
 | `POST /api/favorites` | ✅ Day 18 已实现 | 同上 |
-| `DELETE /api/favorites/:slug` | 第 4 周 | 取消收藏已可用 `POST on:false`（幂等）替代 |
+| `PATCH /api/favorites?id=` | ✅ Day 22 已实现 | `favorites` 补 `note` / `is_deleted` 列（Day 22 迁移，见 `db/schema.sql` 末尾） |
+| `DELETE /api/favorites?id=`（原 `:slug` 占位） | ✅ Day 22 已实现 | 软删除（`is_deleted` 标记）+ 部分唯一索引；按 slug 的取消收藏仍走 `POST on:false` |
 | `GET /api/history` | Day 18+ 待定 | 历史表 `history`（未建；浏览记录仍走 localStorage） |
 | `POST /api/history` | Day 18+ 待定 | 同上 |
 
@@ -308,3 +364,4 @@
 - 2026-10-02 · Day 17：§1.1/§1.2/§1.3 三个读接口**部署并通过真库验证**（响应统一加 `ok` 字段；§1.2 因网关不支持子路径改为 `?slug=` 查询参数形态）；新增 `limit` 参数（加练）；§0 补 CORS 实测结论。数据通道：云函数 → `POST {envId}.api.tcloudbasegateway.com/v1/rdb/exec-pgsql`（参数化 SQL `$1/$2/$3`，默认只读角色；API Key 存函数环境变量 `CB_API_KEY`，不进仓库）。前端 `js/store.js` 内容读切到真 API、失败回落静态 mock（页面代码零改动）。
 - 2026-10-03 · Day 18：§2B.1/§2B.2 读写接口**部署并通过写入/读回真库验证**——`favorites` 表建好（`UNIQUE(client_id, card_slug)` 防重复，见 `db/schema.sql`）；POST 中文校验（缺字段 400 / 重复 409 / 不存在 404）；`on:false` 幂等取消替代 DELETE；新增可选 `client_id` 参数（V1 匿名标识）；服务端 JSON 日志（加练）。前端收藏仍走 localStorage，切换留 V2。
 - 2026-10-03 · Day 19：**后端分层重构（本文档所有接口路径、参数、响应形状零改动）**——SQL 全部下沉 `*Repository.js`，数据库连接下沉 `db.js`，云函数入口只留「接请求 → 校验 → 调函数 → 返响应」；重构后 21 项回归（含错误分支）响应体与重构前逐字节一致（时间戳归一化后）。分层示意见 `assets/day19-layers.svg`。
+- 2026-10-07 · Day 22：§2B.3 `PATCH ?id=` 与 §2B.4 `DELETE ?id=` **部署并通过线上增删改查四类闭环验证**（SELECT 前后对比：note 空 → 改后新值 → 删后 `is_deleted=true`，行保留可找回）。`favorites` 补 `note`（≤200）/ `is_deleted` 两列，唯一约束升级为部分唯一索引（软删后可重新收藏，修复「软删再收藏撞 23505」的隐患）；删除统一软删除（`POST on:false` 的取消同样置标记）；GET / POST 响应补 `id`（/ `note`）字段供按 id 操作；PATCH 白名单校验（只许改 note）+ id 存在性 404 中文报错。前端删除加二次确认（原生 `<dialog>`，确认在发请求之前），`check.html` 新增 ④ 修改与删除板块并同步公网 dist。

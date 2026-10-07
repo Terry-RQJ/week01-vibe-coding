@@ -66,11 +66,27 @@
             <label for="write-slug">卡片：</label>
             <select id="write-slug"></select>
             <label for="write-client">client_id：</label>
-            <input id="write-client" type="text" value="day20-check" maxlength="64">
+            <input id="write-client" type="text" value="day22-check" maxlength="64">
             <button type="button" class="check-btn" id="btn-fav">测试收藏</button>
             <button type="button" class="check-btn" id="btn-unfav">测试取消</button>
           </div>
           <pre class="check-result" id="write-result">（还没写入过）</pre>
+        </div>
+
+        <!-- ④ 修改与删除（Day 22）-->
+        <div class="check-block" id="block-modify">
+          <h2>④ 修改与删除 <code>PATCH /api/favorites?id=</code> · <code>DELETE /api/favorites?id=</code></h2>
+          <p class="check-note">下面列出当前 client_id 的收藏（带数据库 id）。
+            改备注 → PATCH 只更新 note 字段；删除 → 触发<b>二次确认</b>，确认后软删除（数据仍在库里，可找回）。</p>
+          <ul class="fav-list" id="fav-list" aria-live="polite">
+            <li class="fav-empty">（还没有收藏，先用上面 ③ 收一条）</li>
+          </ul>
+          <div class="check-form">
+            <label for="edit-note">新备注：</label>
+            <input id="edit-note" type="text" maxlength="200" placeholder="例如：劳动仲裁时效是一年">
+            <button type="button" class="check-btn" id="btn-refresh-fav">刷新列表</button>
+          </div>
+          <pre class="check-result" id="modify-result">（还没操作过）</pre>
         </div>
       </section>
     </div>
@@ -81,6 +97,17 @@
       <p>法律小科普轻站 · 检查台 —— 数据来自 CloudBase PostgreSQL，仅供课程学习验证。</p>
     </div>
   </footer>
+
+  <!-- 删除二次确认对话框（原生 <dialog>：自带焦点陷阱与 Esc 关闭，无障碍友好） -->
+  <dialog class="confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-desc">
+    <h3 id="confirm-title">确认删除这条收藏？</h3>
+    <p id="confirm-desc" class="confirm-desc"></p>
+    <p class="confirm-warn">删除后列表不再显示这条记录（数据库里会标记为已删除，必要时可找回）。</p>
+    <div class="confirm-actions">
+      <button type="button" class="check-btn check-btn-ghost" id="confirm-cancel">取消</button>
+      <button type="button" class="check-btn check-btn-danger" id="confirm-ok">确认删除</button>
+    </div>
+  </dialog>
 
   <script src="./js/ui.js"></script>
   <script src="./js/page-check.js"></script>

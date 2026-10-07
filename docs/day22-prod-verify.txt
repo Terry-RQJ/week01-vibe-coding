@@ -1,0 +1,34 @@
+════════ Day 22 线上四类操作闭环验证 ════════
+
+【① GET】空列表
+  GET -> 200 total=0 data=[]
+
+【② POST】新增一条（拿 id）
+  POST -> 200 {"id":26,"slug":"gongsi-quantui","on":true,"favorited_at":"2026-10-07T23:50:39.794065+08:00"}
+
+【SELECT 对比 · 改之前】数据库里这一行长什么样：
+  {"card_slug":"gongsi-quantui","client_id":"day22-prod","id":26,"is_deleted":false,"note":""}
+
+【③ PATCH】改备注 → "劳动仲裁时效是一年"
+  PATCH -> 200 {"favorited_at":"2026-10-07T23:50:39.794065+08:00","id":26,"note":"劳动仲裁时效是一年","slug":"gongsi-quantui"}
+
+【SELECT 对比 · 改之后】note 字段的变化：
+  {"card_slug":"gongsi-quantui","client_id":"day22-prod","id":26,"is_deleted":false,"note":"劳动仲裁时效是一年"}
+
+【③-b PATCH 不存在的 id】
+  PATCH -> 404 {"code":"FAVORITE_NOT_FOUND","message":"找不到这条收藏记录（id=99999999），可能已被删除"}
+
+【④ DELETE】删除该条（软删除）
+  DELETE -> 200 {"id":26,"slug":"gongsi-quantui","deleted":true,"soft":true}
+
+【GET】删除后该条不再返回：
+  GET -> 200 total=0 data=[]
+
+【SELECT 对比 · 删之后】行还在，但 is_deleted = true（软删除可找回）：
+  {"card_slug":"gongsi-quantui","client_id":"day22-prod","id":26,"is_deleted":true,"note":"劳动仲裁时效是一年"}
+
+【④-b DELETE 不存在的 id】
+  DELETE -> 404 {"code":"FAVORITE_NOT_FOUND","message":"找不到这条收藏记录（id=99999999），可能已被删除"}
+
+【收尾】清掉本次验证残留
+  GET 最终 -> 200 total=0

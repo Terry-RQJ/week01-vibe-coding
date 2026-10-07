@@ -66,3 +66,21 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 CREATE INDEX IF NOT EXISTS idx_favorites_client ON favorites(client_id);
 GRANT SELECT ON favorites TO cloudbase_read_only_user_postgres_ebc42q2s;
+
+-- ── Day 22 追加：favorites 补两个字段，支撑 PATCH 修改 + 软删除 ──
+-- note       ：用户自己的备注（PATCH /api/favorites/:id 唯一可改字段，≤200 字）
+-- is_deleted ：软删除标记（DELETE 只置 true，不真删行；查询一律 WHERE is_deleted = false）
+--              为什么删除比新增更容易出事：新增错了顶多多一条，删除错了数据没了。
+--              软删除 = 在数据层加的「第二道确认」，删错了能找回（加练项）。
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS note VARCHAR(200) NOT NULL DEFAULT '';
+ALTER TABLE favorites ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false;
+
+-- 唯一约束要带上 is_deleted：软删除后再收藏同一张卡不应被 UNIQUE 拦。
+-- 原 UNIQUE(client_id, card_slug) 会让「删了再收」撞 23505，故改为部分唯一索引：
+-- 只对未删除的行生效（PostgreSQL 部分索引，软删除的标准配套写法）。
+ALTER TABLE favorites DROP CONSTRAINT IF EXISTS favorites_client_id_card_slug_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_favorites_active
+    ON favorites(client_id, card_slug) WHERE is_deleted = false;
+
+-- 列表查询走 (client_id, is_deleted)，建个复合索引
+CREATE INDEX IF NOT EXISTS idx_favorites_client_deleted ON favorites(client_id, is_deleted);

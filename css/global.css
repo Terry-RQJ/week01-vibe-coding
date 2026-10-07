@@ -770,3 +770,43 @@ a:hover { text-decoration: underline; }
   .check-form select { max-width: 100%; flex-basis: 100%; }
   .check-table th:nth-child(3), .check-table td:nth-child(3) { display: none; } /* 手机端藏分类列防溢出 */
 }
+
+/* ========== Day 22：检查台 ④ 修改与删除 + 二次确认对话框 ========== */
+.fav-list { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
+.fav-item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: 8px 10px; border-bottom: 1px solid var(--color-border);
+}
+.fav-item:last-child { border-bottom: none; }
+.fav-info { flex: 1 1 240px; font-size: 13.5px; min-width: 0; }
+.fav-info b { color: var(--bamboo-dark, #2C5A3D); margin-right: 4px; }
+.fav-note { color: var(--color-ink-gray, #6B7280); font-size: 12.5px; }
+.fav-empty { font-size: 13px; color: var(--color-ink-gray, #6B7280); padding: 6px 0; list-style: none; }
+
+.check-btn-sm { font-size: 12.5px; padding: 5px 12px; }
+.check-btn-ghost { background: #fff; color: var(--bamboo-dark, #2C5A3D); border-color: var(--color-border); }
+.check-btn-ghost:hover { box-shadow: 0 2px 8px rgba(24, 58, 37, 0.12); }
+.check-btn-danger { background: #B4232A; border-color: #8E1B21; color: #FFF5F5; }
+.check-btn-danger:hover { box-shadow: 0 4px 12px rgba(180, 35, 42, 0.24); }
+.check-btn-danger:focus-visible { outline: 3px solid var(--color-gold-warm, #D9B93C); outline-offset: 2px; }
+
+/* 二次确认对话框（原生 <dialog>，自带焦点陷阱 + Esc 关闭） */
+.confirm-dialog {
+  border: none; border-radius: var(--radius-md, 12px); padding: var(--space-5, 20px) var(--space-5, 20px) var(--space-4, 16px);
+  max-width: 440px; width: calc(100% - 32px); box-shadow: 0 18px 48px rgba(16, 34, 22, 0.28);
+  background: var(--color-card, #fff); color: var(--color-fg, #1F2A22);
+}
+.confirm-dialog::backdrop { background: rgba(16, 34, 22, 0.45); }
+.confirm-dialog h3 { margin: 0 0 var(--space-2); font-size: 18px; color: var(--color-ink-red, #B4232A); }
+.confirm-desc { font-size: 14px; line-height: 1.65; margin: 0 0 var(--space-2); }
+.confirm-warn {
+  font-size: 12.5px; line-height: 1.6; color: #7A5D00; background: #FFF7E0;
+  border-left: 3px solid var(--color-gold-warm, #D9B93C); border-radius: 0 6px 6px 0;
+  padding: 8px 12px; margin: 0 0 var(--space-3);
+}
+.confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+@media (max-width: 640px) {
+  .fav-info { flex-basis: 100%; }
+  .confirm-actions { flex-direction: column-reverse; }
+  .confirm-actions .check-btn { width: 100%; }
+}
