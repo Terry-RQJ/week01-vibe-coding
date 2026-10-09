@@ -83,7 +83,9 @@
           </ul>
           <div class="check-form">
             <label for="edit-note">新备注：</label>
-            <input id="edit-note" type="text" maxlength="200" placeholder="例如：劳动仲裁时效是一年">
+            <!-- maxlength 按 UTF-16 码元计（emoji 算 2），比后端的 200 码点更严；
+                 这里放宽到 400 码元（≈200 个 emoji），把最终判断权交给后端统一按码点校验 -->
+            <input id="edit-note" type="text" maxlength="400" placeholder="例如：劳动仲裁时效是一年">
             <button type="button" class="check-btn" id="btn-refresh-fav">刷新列表</button>
           </div>
           <pre class="check-result" id="modify-result">（还没操作过）</pre>

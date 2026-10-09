@@ -206,7 +206,7 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 
 **错误 404**：`slug` 不在已发布卡片中 → `{ "ok": false, "error": { "code": "CARD_NOT_FOUND", "message": "找不到这个情形：<slug>" } }`
 
-**错误 400**：body 非法 JSON → `{ "code": "INVALID_BODY", "message": "请求体不是合法的 JSON" }`
+**错误 400**：body 非法 JSON → `{ "code": "INVALID_BODY", "message": "请求体不是合法的 JSON" }`；body 是合法 JSON 但不是对象（`null` / `[]` / `123` / `"x"`）→ `{ "code": "INVALID_BODY", "kind": "input", "message": "请求体应该是一个 JSON 对象，例如 {\"note\":\"...\"}" }`（Day 24 修复：此前非对象 body 会 500）
 
 #### 2B.3 `PATCH /api/favorites?id=` ✅ 已实现（Day 22）
 
@@ -226,9 +226,9 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 
 | 字段 | 必填 | 校验失败（400，中文报错） |
 |---|---|---|
-| `id`（query） | 是 | `缺少必填参数 id（要操作的收藏记录编号）`；非正整数 → `id 格式不对：应为正整数` |
+| `id`（query） | 是 | `缺少必填参数 id（要操作的收藏记录编号）`；非正整数 → `id 格式不对：应为正整数（如 31），不要用 1e2、+1、0x10 这类写法`（Day 24 收紧：`Number()` 过于宽容，`1e2`/`+1`/`0x10`/`1.5` 曾被静默接受，现改正则 `^[1-9][0-9]{0,15}$` 白名单） |
 | 未知字段 | — | body 里出现 `note` / `client_id` 以外的键 → `本接口只能改 note，不支持改：<字段名>`（**先查白名单再查必填**，报错更精准——顺序反了会误报「缺 note」） |
-| `note` | 是 | `缺少必填字段 note（要改成什么备注）`；非字符串 → `字段 note 必须是字符串`；超长 → `备注太长（≤200 字）` |
+| `note` | 是 | `缺少必填字段 note（要改成什么备注）`；非字符串 → `字段 note 必须是字符串`；超长 → `备注太长（当前 N 字，上限 200 字）`（Day 24 修正：长度按**字符/码点**计 `Array.from(s).length`，与 PostgreSQL VARCHAR(200) 对齐——此前用 JS `String.length`（UTF-16 码元），101 个 emoji（202 码元）会被误拒） |
 | `client_id` | 否 | 默认 `anon`；超长 → `client_id 太长（≤64）`。归属校验：别人的 id 改不了你的记录（查不到 = 404） |
 
 **响应 200**（实际返回）：
@@ -366,3 +366,4 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 - 2026-10-03 · Day 19：**后端分层重构（本文档所有接口路径、参数、响应形状零改动）**——SQL 全部下沉 `*Repository.js`，数据库连接下沉 `db.js`，云函数入口只留「接请求 → 校验 → 调函数 → 返响应」；重构后 21 项回归（含错误分支）响应体与重构前逐字节一致（时间戳归一化后）。分层示意见 `assets/day19-layers.svg`。
 - 2026-10-07 · Day 22：§2B.3 `PATCH ?id=` 与 §2B.4 `DELETE ?id=` **部署并通过线上增删改查四类闭环验证**（SELECT 前后对比：note 空 → 改后新值 → 删后 `is_deleted=true`，行保留可找回）。`favorites` 补 `note`（≤200）/ `is_deleted` 两列，唯一约束升级为部分唯一索引（软删后可重新收藏，修复「软删再收藏撞 23505」的隐患）；删除统一软删除（`POST on:false` 的取消同样置标记）；GET / POST 响应补 `id`（/ `note`）字段供按 id 操作；PATCH 白名单校验（只许改 note）+ id 存在性 404 中文报错。前端删除加二次确认（原生 `<dialog>`，确认在发请求之前），`check.html` 新增 ④ 修改与删除板块并同步公网 dist。
 - 2026-10-09 · Day 23：**安全审计 + 三类错误提示统一**。新增 `kind` 字段（input/network/server，§0 已更新）；四个函数 catch 统一接 `errors.js toErrorResponse`——修掉 cards/categories 入口 `e.message` 直出（数据库英文原文曾会透传给用户）、db.js 网关报错透传、`DB_NOT_CONFIGURED` 暴露环境变量名三处裸报错；health 补 `ok:false` + try/catch。密钥排查：全历史 43 提交逐个扫描 0 真实密钥（文档里的 `git grep eyJ` 检查命令字样已逐条人工甄别）；`.gitignore` 加固（`.env.*` 通配 + `!.env.example` + credentials 类文件）；新增 `.env.example` 模板。安全自查清单见 `docs/security-checklist.md`（每项含验证方法）；前端 store.js / page-check.js 同步接入三类中文文案。
+- 2026-10-09 · Day 24：**修复真实 Bug：刁钻输入把 favorites 打挂**。三处修复（均在 `functions/api/favorites/index.js`）：① body 为 `null`/数组/数字等**非对象**时曾 500（`Cannot convert undefined or null to object`），现 400 中文提示；② `id` 校验曾被 `Number()` 静默放行 `1e2`/`+1`/`0x10`/`1.5`，现白名单正则拦截；③ `note` 长度改按**码点**计（与数据库 VARCHAR(200) 对齐），200 个 emoji 不再被误拒。前端 `edit-note` maxlength 200→400 码元（emoji 算 2），最终判断权交后端。回归：本地 `docs/day24-regression.js` 29/29、线上 25/25；四步证据（复现/定位/修复/验证）见 `docs/day24-bugfix-log.md`。§2B.2/§2B.3 校验描述已同步。

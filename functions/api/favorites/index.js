@@ -51,27 +51,44 @@ exports.main = async function (event) {
   }
 };
 
-/** 解析 body（非法 JSON 统一 400） */
+/** 解析 body（非法 JSON 统一 400）
+ *
+ * Day 24 修复：`JSON.parse('null')` / `'123'` / `'"str"'` / `'[1,2]'` 都能解析成功，
+ * 但结果不是对象——后面 `Object.keys(body)` 会抛 TypeError，被 catch 兜成 500。
+ * 这是「输入错被误报成服务端错」，必须在这里拦成 400。
+ */
 function parseBody(event) {
+  let parsed;
   try {
-    return { body: JSON.parse((event && event.body) || '{}') };
+    parsed = JSON.parse((event && event.body) || '{}');
   } catch (e) {
     return { error: json(400, { ok: false, error: { code: 'INVALID_BODY', kind: 'input', message: '请求体不是合法的 JSON' } }) };
   }
+  // 必须是普通对象（排除 null / 数组 / 数字 / 字符串 / 布尔）
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { error: json(400, { ok: false, error: { code: 'INVALID_BODY', kind: 'input', message: '请求体应该是一个 JSON 对象，例如 {"note":"..."}' } }) };
+  }
+  return { body: parsed };
 }
 
-/** 从 query 取 id（正整数），失败返回 {error} */
+/** 从 query 取 id（正整数），失败返回 {error}
+ *
+ * Day 24 修复：原实现用 Number(raw) 判断——Number 过于宽容，
+ * '1e2'→100、'+1'→1、'0x10'→16、' 1 '→1 都会被静默接受，
+ * 用户以为传错了参数却「成功」操作了别的记录。改为严格十进制字面量校验。
+ */
 function parseId(event) {
   const q = (event && event.queryStringParameters) || {};
   const raw = q.id;
   if (raw === undefined || raw === null || String(raw).trim() === '') {
     return { error: json(400, { ok: false, error: { code: 'MISSING_FIELD', kind: 'input', message: '缺少必填参数 id（要操作的收藏记录编号）' } }) };
   }
-  const id = Number(String(raw).trim());
-  if (!Number.isInteger(id) || id <= 0) {
-    return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: 'id 格式不对：应为正整数' } }) };
+  const s = String(raw).trim();
+  // 只接受纯十进制数字（不接受 1e2 / +1 / 0x10 / 1.5 / 空格等写法）
+  if (!/^[1-9][0-9]{0,15}$/.test(s)) {
+    return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: 'id 格式不对：应为正整数（如 31），不要用 1e2、+1、0x10 这类写法' } }) };
   }
-  return { id: id };
+  return { id: Number(s) };
 }
 
 /** 解析 client_id（可选，默认 anon） */
@@ -164,8 +181,12 @@ async function handlePatch(event) {
   if (typeof body.note !== 'string') {
     return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '字段 note 必须是字符串' } });
   }
-  if (body.note.length > 200) {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '备注太长（≤200 字）' } });
+  // Day 24 修复：原用 String.length（UTF-16 码元）——一个 emoji 算 2，
+  // 导致「101 个表情」被拒（数据库其实只需 101 字符），而 200 个汉字能过。
+  // PostgreSQL VARCHAR(200) 按字符（码点）算，这里统一用码点计数对齐。
+  const noteLen = Array.from(body.note).length;
+  if (noteLen > 200) {
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '备注太长（当前 ' + noteLen + ' 字，上限 200 字）' } });
   }
   const cp = parseClientId(body.client_id);
   if (cp.error) return cp.error;

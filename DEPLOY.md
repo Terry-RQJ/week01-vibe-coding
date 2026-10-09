@@ -392,3 +392,42 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 | 跨目录 require | `../common/errors` 本地能加载，但部署按函数 dir 打包会上传失败 | 母版 + 四副本（与 db.js 既有约定一致），母版头写同步命令 |
 | echo 乱码 | Windows GBK 控制台输出进截图报告 | subprocess 输出按 utf-8→gbk 依次尝试解码；「0 命中」改用命令退出码 + 输出包含判断 |
 | 超长 slug 演示 500 | 只会 404（输入错），触发不了服务端错 | 服务端错不线上故意打挂——用与 toErrorResponse 形状一致的等价构造演示（如实标注「模拟」），真实英文原文兜底由冒烟脚本验证 |
+
+---
+
+## 18. Day 24 修复真实 Bug：刁钻输入把 favorites 打挂（2026-10-09）
+
+> 四步全证据（复现/定位/修复/验证）详见 `docs/day24-bugfix-log.md`，此处只留摘要与部署记录。
+
+### Bug 一览（刁钻输入测试挖出，3 个）
+
+| # | Bug | 改前症状 | 修复 |
+|---|---|---|---|
+| 1 | `parseBody` 只挡非法 JSON | body 传 `null`（合法 JSON 非对象）→ `Object.keys(null)` 抛 `Cannot convert undefined or null to object` → **HTTP 500** | 加「必须是普通对象」检查 → 400 中文提示 |
+| 2 | `parseId` 用 `Number()` 过于宽容 | `?id=1e2` / `+1` / `0x10` / `1.5` 被静默接受拿去查库 | 白名单正则 `^[1-9][0-9]{0,15}$` → 其余 400 |
+| 3 | note 长度按 UTF-16 码元计 | 101 个 emoji（`String.length`=202）被误拒，但 PostgreSQL VARCHAR(200) 按码点其实装得下 | `Array.from(s).length` 按码点计，与数据库对齐 |
+
+### 定位方法（为什么能锁定原因 1）
+
+四个候选原因排序：① parseBody 解出 null 后 Object.keys(null) ② 数据库拒绝 ③ 网关变形 ④ errors.js 映射误判。
+逐一验证：异常抛在 handlePatch 第 153 行（入口层，未进 SQL）→ 排除②；本地直调 main() 同样 500 → 排除③；
+TypeError 本就无 status、兜底 500 属正确行为 → 排除④；`Object.keys(null)` 的报错文案与日志逐字吻合 → **锁定①**。
+
+### 验证结果
+
+| 范围 | 清单 | 结果 |
+|---|---|---|
+| 本地 | `docs/day24-regression.js` 29 项（非对象 body / 宽容 id / 码点边界 / 合法链路 / 错误兜底） | ✅ 29/29 |
+| 线上 | 部署后 25 项（5 种非对象 body→400、7 种宽容 id→400、200/201 emoji 与汉字边界、核心链路读写改删、三接口回归） | ✅ 25/25 |
+
+### 截图
+
+- `day24-shot-bug.png`：复现步骤 + 服务端日志原文 + 修复前 500 响应 + 已尝试动作 + 修复后 400 对照
+- `day24-shot-fixed.png`：检查台核心链路全通（地址栏 + 删除 200 JSON + 列表空 + 说明条）
+
+### 卡点记录
+
+| 卡点 | 症状 | 处理 |
+|---|---|---|
+| 沙箱后台进程回收 | `nohup python -m http.server &` 随 Bash 调用结束被杀，之后的 curl 200 实为 Steam++ 代理（127.0.0.1:53945）伪造的 502/缓存响应 | 改用真正的后台任务方式常驻；直连验证统一加 `ProxyHandler({})` 绕代理 |
+| Edge 打开 localhost 落错误页 | 环境变量 `http_proxy=127.0.0.1:53945` 劫持了 127.0.0.1 流量，页面加载失败（`chrome-error://chromewebdata`），所有 `Runtime.evaluate` 抛 TypeError | 启动 Edge 时用清理过 proxy 环境变量的 env + `--proxy-server=direct:// --proxy-bypass-list=*`，地址改用 `127.0.0.1` |
