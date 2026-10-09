@@ -13,7 +13,7 @@
 | Base URL（已上线） | `https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api`（CloudBase HTTP 网关 → 云函数） |
 | 内容类型 | `application/json; charset=utf-8` |
 | 鉴权（V1） | 无（V1 只读公开内容） |
-| 错误返回 | `{ "ok": false, "error": { "code": "STRING", "message": "USER_READABLE_CN" } }`，HTTP 状态码同步语义（400/404/500） |
+| 错误返回 | `{ "ok": false, "error": { "code": "STRING", "kind": "input\\|network\\|server", "message": "USER_READABLE_CN" } }`，HTTP 状态码同步语义（400/404/500）。`kind` 为 Day 23 新增的错误类别：`input`=用户传错（400/404/405/409）、`network`=网络/通道问题（502/503/504）、`server`=服务端内部问题（500）。**message 一律中文人话**——数据库英文原文只进服务端日志，绝不进响应体（统一由各函数目录内 `errors.js` 的 `toErrorResponse` 兜底） |
 | 响应统一形状 | 成功 `{ ok: true, data, meta? }`；失败 `{ ok: false, error: { code, message } }`（Day 17 起统一加 `ok` 字段） |
 | CORS | 云函数不设 CORS 头，由 HTTP 网关按请求 Origin 自动回 `Access-Control-Allow-Origin`（Day 17 实测：函数自设 `*` 会被网关拼成 `origin,*` 双值导致浏览器拒绝，切勿自设） |
 | JSON 显示 | 网关固定回 `content-disposition: attachment`，浏览器地址栏直开 API 地址时 Edge 仍直接显示 JSON 文本（实测），不影响前端 fetch |
@@ -365,3 +365,4 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 - 2026-10-03 · Day 18：§2B.1/§2B.2 读写接口**部署并通过写入/读回真库验证**——`favorites` 表建好（`UNIQUE(client_id, card_slug)` 防重复，见 `db/schema.sql`）；POST 中文校验（缺字段 400 / 重复 409 / 不存在 404）；`on:false` 幂等取消替代 DELETE；新增可选 `client_id` 参数（V1 匿名标识）；服务端 JSON 日志（加练）。前端收藏仍走 localStorage，切换留 V2。
 - 2026-10-03 · Day 19：**后端分层重构（本文档所有接口路径、参数、响应形状零改动）**——SQL 全部下沉 `*Repository.js`，数据库连接下沉 `db.js`，云函数入口只留「接请求 → 校验 → 调函数 → 返响应」；重构后 21 项回归（含错误分支）响应体与重构前逐字节一致（时间戳归一化后）。分层示意见 `assets/day19-layers.svg`。
 - 2026-10-07 · Day 22：§2B.3 `PATCH ?id=` 与 §2B.4 `DELETE ?id=` **部署并通过线上增删改查四类闭环验证**（SELECT 前后对比：note 空 → 改后新值 → 删后 `is_deleted=true`，行保留可找回）。`favorites` 补 `note`（≤200）/ `is_deleted` 两列，唯一约束升级为部分唯一索引（软删后可重新收藏，修复「软删再收藏撞 23505」的隐患）；删除统一软删除（`POST on:false` 的取消同样置标记）；GET / POST 响应补 `id`（/ `note`）字段供按 id 操作；PATCH 白名单校验（只许改 note）+ id 存在性 404 中文报错。前端删除加二次确认（原生 `<dialog>`，确认在发请求之前），`check.html` 新增 ④ 修改与删除板块并同步公网 dist。
+- 2026-10-09 · Day 23：**安全审计 + 三类错误提示统一**。新增 `kind` 字段（input/network/server，§0 已更新）；四个函数 catch 统一接 `errors.js toErrorResponse`——修掉 cards/categories 入口 `e.message` 直出（数据库英文原文曾会透传给用户）、db.js 网关报错透传、`DB_NOT_CONFIGURED` 暴露环境变量名三处裸报错；health 补 `ok:false` + try/catch。密钥排查：全历史 43 提交逐个扫描 0 真实密钥（文档里的 `git grep eyJ` 检查命令字样已逐条人工甄别）；`.gitignore` 加固（`.env.*` 通配 + `!.env.example` + credentials 类文件）；新增 `.env.example` 模板。安全自查清单见 `docs/security-checklist.md`（每项含验证方法）；前端 store.js / page-check.js 同步接入三类中文文案。

@@ -15,6 +15,7 @@
 
 const favoritesRepository = require('./favoritesRepository');
 const cardsRepository = require('./cardsRepository');
+const { toErrorResponse } = require('./errors');
 
 /** 统一 JSON 响应（不设 CORS 头——网关按 Origin 自动回，函数自设会被拼成双值） */
 function json(status, obj) {
@@ -41,10 +42,12 @@ exports.main = async function (event) {
     if (method === 'POST') return await handleCreate(event);
     if (method === 'PATCH') return await handlePatch(event);
     if (method === 'DELETE') return await handleDelete(event);
-    return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', message: '只支持 GET / POST / PATCH / DELETE' } });
+    return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', kind: 'input', message: '只支持 GET / POST / PATCH / DELETE' } });
   } catch (e) {
-    log('error', { message: e.message, code: e.code });
-    return json(500, { ok: false, error: { code: 'INTERNAL', message: '服务器开小差了，稍后再试' } });
+    // Day 23：统一中文错误映射——本函数此前已有中文文案（Day 18/22），
+    // 但底层数据库/运行时异常仍可能带英文原文上抛，这里统一兜住。
+    log('error', { message: e.message, code: e.code, internal: e.detail || '' });
+    return toErrorResponse(e, function () { /* 上面已记录，避免重复日志 */ });
   }
 };
 
@@ -53,7 +56,7 @@ function parseBody(event) {
   try {
     return { body: JSON.parse((event && event.body) || '{}') };
   } catch (e) {
-    return { error: json(400, { ok: false, error: { code: 'INVALID_BODY', message: '请求体不是合法的 JSON' } }) };
+    return { error: json(400, { ok: false, error: { code: 'INVALID_BODY', kind: 'input', message: '请求体不是合法的 JSON' } }) };
   }
 }
 
@@ -62,11 +65,11 @@ function parseId(event) {
   const q = (event && event.queryStringParameters) || {};
   const raw = q.id;
   if (raw === undefined || raw === null || String(raw).trim() === '') {
-    return { error: json(400, { ok: false, error: { code: 'MISSING_FIELD', message: '缺少必填参数 id（要操作的收藏记录编号）' } }) };
+    return { error: json(400, { ok: false, error: { code: 'MISSING_FIELD', kind: 'input', message: '缺少必填参数 id（要操作的收藏记录编号）' } }) };
   }
   const id = Number(String(raw).trim());
   if (!Number.isInteger(id) || id <= 0) {
-    return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', message: 'id 格式不对：应为正整数' } }) };
+    return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: 'id 格式不对：应为正整数' } }) };
   }
   return { id: id };
 }
@@ -74,7 +77,7 @@ function parseId(event) {
 /** 解析 client_id（可选，默认 anon） */
 function parseClientId(value) {
   const v = typeof value === 'string' && value.trim() ? value.trim() : 'anon';
-  if (v.length > 64) return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', message: 'client_id 太长（≤64）' } }) };
+  if (v.length > 64) return { error: json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: 'client_id 太长（≤64）' } }) };
   return { clientId: v };
 }
 
@@ -95,16 +98,16 @@ async function handleCreate(event) {
 
   // ── 1. 必填校验（中文报错，说清缺了什么）──
   if (body.slug === undefined || body.slug === null || body.slug === '') {
-    return json(400, { ok: false, error: { code: 'MISSING_FIELD', message: '缺少必填字段 slug（要收藏的卡片短名）' } });
+    return json(400, { ok: false, error: { code: 'MISSING_FIELD', kind: 'input', message: '缺少必填字段 slug（要收藏的卡片短名）' } });
   }
   if (typeof body.slug !== 'string' || !/^[a-z0-9-]{1,64}$/.test(body.slug)) {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', message: 'slug 格式不对：应为 1-64 位小写字母/数字/连字符' } });
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: 'slug 格式不对：应为 1-64 位小写字母/数字/连字符' } });
   }
   if (body.on === undefined || body.on === null) {
-    return json(400, { ok: false, error: { code: 'MISSING_FIELD', message: '缺少必填字段 on（true=收藏，false=取消收藏）' } });
+    return json(400, { ok: false, error: { code: 'MISSING_FIELD', kind: 'input', message: '缺少必填字段 on（true=收藏，false=取消收藏）' } });
   }
   if (typeof body.on !== 'boolean') {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', message: '字段 on 必须是布尔值 true 或 false' } });
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '字段 on 必须是布尔值 true 或 false' } });
   }
   const cp = parseClientId(body.client_id);
   if (cp.error) return cp.error;
@@ -113,7 +116,7 @@ async function handleCreate(event) {
   // ── 2. 卡片存在性（查数据走 repository）──
   if (!(await cardsRepository.existsPublished(slug))) {
     log('reject', { reason: 'card_not_found', slug: slug });
-    return json(404, { ok: false, error: { code: 'CARD_NOT_FOUND', message: '找不到这个情形：' + slug } });
+    return json(404, { ok: false, error: { code: 'CARD_NOT_FOUND', kind: 'input', message: '找不到这个情形：' + slug } });
   }
 
   // ── 3. 写入 / 取消（SQL 在 favoritesRepository）──
@@ -128,7 +131,7 @@ async function handleCreate(event) {
       const msg = String(e.message || '');
       if (code.indexOf('23505') >= 0 || msg.indexOf('duplicate key') >= 0) {
         log('reject', { reason: 'duplicate', slug: slug, client_id: clientId });
-        return json(409, { ok: false, error: { code: 'ALREADY_FAVORITED', message: '这张卡片已经收藏过了，请勿重复提交' } });
+        return json(409, { ok: false, error: { code: 'ALREADY_FAVORITED', kind: 'input', message: '这张卡片已经收藏过了，请勿重复提交' } });
       }
       throw e;
     }
@@ -152,17 +155,17 @@ async function handlePatch(event) {
   // 提示不准（Day 22 冒烟发现：传 {card_slug:'hack'} 时报的是缺 note）
   const unknown = Object.keys(body).filter(function (k) { return k !== 'note' && k !== 'client_id'; });
   if (unknown.length) {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', message: '本接口只能改 note，不支持改：' + unknown.join(', ') } });
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '本接口只能改 note，不支持改：' + unknown.join(', ') } });
   }
   // 仅允许改 note 一个字段（白名单）
   if (body.note === undefined || body.note === null) {
-    return json(400, { ok: false, error: { code: 'MISSING_FIELD', message: '缺少必填字段 note（要改成什么备注）' } });
+    return json(400, { ok: false, error: { code: 'MISSING_FIELD', kind: 'input', message: '缺少必填字段 note（要改成什么备注）' } });
   }
   if (typeof body.note !== 'string') {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', message: '字段 note 必须是字符串' } });
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '字段 note 必须是字符串' } });
   }
   if (body.note.length > 200) {
-    return json(400, { ok: false, error: { code: 'INVALID_PARAM', message: '备注太长（≤200 字）' } });
+    return json(400, { ok: false, error: { code: 'INVALID_PARAM', kind: 'input', message: '备注太长（≤200 字）' } });
   }
   const cp = parseClientId(body.client_id);
   if (cp.error) return cp.error;
@@ -170,7 +173,7 @@ async function handlePatch(event) {
   const row = await favoritesRepository.updateNote(idp.id, cp.clientId, body.note);
   if (!row) {
     log('reject', { reason: 'not_found', id: idp.id, client_id: cp.clientId });
-    return json(404, { ok: false, error: { code: 'FAVORITE_NOT_FOUND', message: '找不到这条收藏记录（id=' + idp.id + '），可能已被删除' } });
+    return json(404, { ok: false, error: { code: 'FAVORITE_NOT_FOUND', kind: 'input', message: '找不到这条收藏记录（id=' + idp.id + '），可能已被删除' } });
   }
   log('patch', { id: idp.id, client_id: cp.clientId });
   return json(200, { ok: true, data: row });
@@ -187,7 +190,7 @@ async function handleDelete(event) {
   const row = await favoritesRepository.softDeleteById(idp.id, cp.clientId);
   if (!row) {
     log('reject', { reason: 'not_found', id: idp.id, client_id: cp.clientId });
-    return json(404, { ok: false, error: { code: 'FAVORITE_NOT_FOUND', message: '找不到这条收藏记录（id=' + idp.id + '），可能已被删除' } });
+    return json(404, { ok: false, error: { code: 'FAVORITE_NOT_FOUND', kind: 'input', message: '找不到这条收藏记录（id=' + idp.id + '），可能已被删除' } });
   }
   log('delete', { id: idp.id, client_id: cp.clientId });
   // soft:true 让调用方知道这是软删除（数据还在库里，可找回）

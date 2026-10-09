@@ -19,7 +19,7 @@ function makeErr(status, code, message) {
 function execPg(sql, parameters) {
   return new Promise((resolve, reject) => {
     if (!API_KEY) {
-      return reject(makeErr(500, 'DB_NOT_CONFIGURED', '云函数缺少 CB_API_KEY 环境变量'));
+      return reject(makeErr(500, 'DB_NOT_CONFIGURED', '服务器开小差了，稍后再试', '云函数缺少 CB_API_KEY 环境变量'));
     }
     const body = JSON.stringify({ sql, parameters: parameters || [] });
     const req = require('https').request({
@@ -39,12 +39,14 @@ function execPg(sql, parameters) {
         let parsed;
         try { parsed = JSON.parse(d); } catch (e) { parsed = null; }
         if (res.statusCode >= 400 || (parsed && parsed.code)) {
-          return reject(makeErr(500, (parsed && parsed.code) || 'DB_ERROR', (parsed && parsed.message) || 'HTTP ' + res.statusCode));
+          // Day 23：原始报错只进 detail（日志用），对外文案由入口层统一成中文兜底
+          const internal = (parsed && parsed.message) || ('HTTP ' + res.statusCode);
+          return reject(makeErr(500, (parsed && parsed.code) || 'DB_ERROR', internal, internal));
         }
         resolve(parsed);
       });
     });
-    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', e.message)));
+    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', '数据库连接失败', e.message)));
     req.on('timeout', () => req.destroy(makeErr(504, 'DB_TIMEOUT', '数据库查询超时')));
     req.end(body);
   });

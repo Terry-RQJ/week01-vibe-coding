@@ -24,7 +24,7 @@ function makeErr(status, code, message) {
 /** 调 exec-pgsql（成功 → 直接返回行数组；失败 → reject，e.code 保留 DB 错误码，如 23505 唯一冲突） */
 function execPg(sql, parameters, role) {
   return new Promise((resolve, reject) => {
-    if (!API_KEY) return reject(makeErr(500, 'DB_NOT_CONFIGURED', '云函数缺少 CB_API_KEY 环境变量'));
+    if (!API_KEY) return reject(makeErr(500, 'DB_NOT_CONFIGURED', '服务器开小差了，稍后再试', '云函数缺少 CB_API_KEY 环境变量'));
     const body = JSON.stringify(Object.assign({ sql, parameters: parameters || [] }, role ? { role: role } : {}));
     const req = require('https').request({
       hostname: GW_HOST,
@@ -45,13 +45,14 @@ function execPg(sql, parameters, role) {
         // 网关错误形状：HTTP >= 400 或顶层 { code, message }（如 23505 唯一冲突）
         if (res.statusCode >= 400 || (parsed && parsed.code)) {
           const code = (parsed && parsed.code) || ('HTTP_' + res.statusCode);
-          const msg = (parsed && parsed.message) || ('HTTP ' + res.statusCode);
-          return reject(makeErr(500, code, msg));
+          // Day 23：数据库原始报错只进 detail（日志用），对外文案由入口层统一成中文兜底
+          const internal = (parsed && parsed.message) || ('HTTP ' + res.statusCode);
+          return reject(makeErr(500, code, internal, internal));
         }
         resolve(parsed);
       });
     });
-    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', e.message)));
+    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', '数据库连接失败', e.message)));
     req.on('timeout', () => req.destroy(makeErr(504, 'DB_TIMEOUT', '数据库查询超时')));
     req.end(body);
   });

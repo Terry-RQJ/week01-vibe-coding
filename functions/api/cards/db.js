@@ -12,11 +12,12 @@ const ENV_ID = 'rqj-2006-d0gl1ael531a243a1';
 const GW_HOST = ENV_ID + '.api.tcloudbasegateway.com';
 const API_KEY = process.env.CB_API_KEY || '';
 
-/** 统一错误对象：带 status / code，入口层按它拼响应 */
-function makeErr(status, code, message) {
+/** 统一错误对象：带 status / code / detail，入口层按它拼响应（Day 23 加 detail） */
+function makeErr(status, code, message, detail) {
   const e = new Error(message);
   e.status = status;
   e.code = code;
+  if (detail) e.detail = detail;   // 内部细节：只进日志，不进响应体
   return e;
 }
 
@@ -27,7 +28,7 @@ function makeErr(status, code, message) {
 function execPg(sql, parameters) {
   return new Promise((resolve, reject) => {
     if (!API_KEY) {
-      return reject(makeErr(500, 'DB_NOT_CONFIGURED', '云函数缺少 CB_API_KEY 环境变量'));
+      return reject(makeErr(500, 'DB_NOT_CONFIGURED', '服务器开小差了，稍后再试', '云函数缺少 CB_API_KEY 环境变量'));
     }
     const body = JSON.stringify({ sql, parameters: parameters || [] });
     const req = require('https').request({
@@ -48,13 +49,15 @@ function execPg(sql, parameters) {
         try { parsed = JSON.parse(d); } catch (e) { parsed = null; }
         if (res.statusCode >= 400 || (parsed && parsed.code)) {
           const code = (parsed && parsed.code) || 'DB_ERROR';
-          const msg = (parsed && parsed.message) || ('HTTP ' + res.statusCode);
-          return reject(makeErr(500, code, msg));
+          const internal = (parsed && parsed.message) || ('HTTP ' + res.statusCode);
+          // Day 23：数据库原始报错只进 detail（写日志用），不作为对外 message——
+          // 对外文案由入口层 toErrorResponse 统一替换成中文兜底
+          return reject(makeErr(500, code, internal, internal));
         }
         resolve(parsed);
       });
     });
-    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', e.message)));
+    req.on('error', (e) => reject(makeErr(500, 'DB_REQUEST_FAILED', '数据库连接失败', e.message)));
     req.on('timeout', () => {
       req.destroy(makeErr(504, 'DB_TIMEOUT', '数据库查询超时'));
     });

@@ -347,3 +347,48 @@ tcb hosting deploy ./dist -e <你的EnvId> --yes
 | PATCH 校验顺序 | 传 `{card_slug:'hack'}`（没传 note）时报「缺少必填字段 note」，提示误导 | **先查未知字段白名单，再查 note 必填**；修后报「本接口只能改 note，不支持改：card_slug」 |
 | tcb CLI 丢失 | 环境重置后 `tcb` 命令没了，`db/exec.py` FileNotFoundError | 重装 `@cloudbase/cli`；给 `db/exec.py` 加自动探测（`TCB_CLI` 环境变量 → PATH → 常见安装路径 glob），一劳永逸 |
 | 唯一约束 × 软删除 | 软删后再收藏 23505「已收藏」 | 唯一约束改部分唯一索引 `WHERE is_deleted = false`（迁移含 `DROP CONSTRAINT` + `CREATE UNIQUE INDEX`） |
+
+---
+
+## 17. Day 23 安全审计 + 三类错误统一（2026-10-09）
+
+### 先审计后修复：发现的问题（全部有据）
+
+| 问题 | 位置 | 改前症状 |
+|---|---|---|
+| 裸报错① | cards / categories 入口 catch | `message: e.message` —— 数据库英文原文（如 `relation "cards" does not exist`）直出给用户 |
+| 裸报错② | 三个 db.js | 网关英文报错 `parsed.message` 原文上抛穿透到用户；`req.on('error')` 把 `connect ECONNREFUSED 10.x.x.x` 连内网 IP 一起带出去 |
+| 裸报错③ | `DB_NOT_CONFIGURED` 文案 | 对外暴露「云函数缺少 CB_API_KEY 环境变量」（告诉别人变量名） |
+| 形状不一致 | health 405 | 缺 `ok:false`，且无 try/catch，异常裸崩给网关 |
+| 前端裸报错 | store.js / page-check.js | `"HTTP 500"`、`"API error"`、`"请求失败：The user aborted a request."`、`JSON.stringify(b)` 直出响应体 |
+| 密钥防线 | .gitignore | 没挡 `.env.production` 等变体、没挡 `credentials.json` / `serviceAccountKey.json`；无 `.env.example` 模板 |
+
+### 修复方案
+
+- 新增统一错误模块 `errors.js`（母版 `functions/api/common/`，四函数目录各一份同步副本——CloudBase 按函数 dir 独立打包，跨目录 require 会失败）：
+  - 错误响应统一为 `{ ok:false, error:{ code, kind, message } }`，`kind ∈ input/network/server`
+  - **铁律：message 对外只回中文；数据库英文原文只进 detail → 只写日志，永不进响应体**
+- 三个 db.js：内部报错降级进 `detail`；`DB_NOT_CONFIGURED` 对外改「服务器开小差了，稍后再试」
+- health：补 `ok:false` + try/catch + `kind`
+- 前端 store.js：`apiGet` 重写（AbortError=超时→「请求超时了…」、TypeError=断网→「网络不太顺…」、4xx 优先读后端中文 message）
+- 前端 page-check.js：检查台新增 **⑤ 错误提示演示**（三个按钮实测三类错误）；两处裸报错改人话
+- .gitignore 加固 + 新增 `.env.example`
+
+### 验证（全部实测，方法即清单）
+
+| # | 验证 | 结果 |
+|---|---|---|
+| 1 | 全历史 43 提交逐个 `git grep` 扫真实密钥特征（eyJ20+/sk-/ghp_） | ✅ 0 命中（`git log -S eyJ` 的 2 个命中逐条核对均为文档中的检查命令字样）→ 无需作废/轮换密钥 |
+| 2 | 5 组特征词搜索当前工作树（JWT/Token/密码赋值/证书文件/.env 跟踪） | ✅ 全部 0 命中（截图 `day23-shot-secrets.png`，真实命令输出渲染） |
+| 3 | .env 忽略链：`git ls-files .env` 空 + `git check-ignore -v` 命中第 3 行 + `.env.example` 被例外放行 | ✅ |
+| 4 | 三类错误中文提示：本地冒烟 14 项（内置英文泄露正则校验）+ 线上 12 项（8 输入错 + 4 回归） | ✅ 线上 12/12；截图 `day23-shot-errors.png` |
+| 5 | 部署注入即还原：`trap restore EXIT` 兜底，部署后 `git diff cloudbaserc.json` 空 + 4 函数 envVariables 全空 | ✅ |
+| 6 | 公网静态页同步：⑤ 板块上线（curl 验证 `block-errors` 命中） | ✅ |
+
+### 卡点记录
+
+| 卡点 | 症状 | 处理 |
+|---|---|---|
+| 跨目录 require | `../common/errors` 本地能加载，但部署按函数 dir 打包会上传失败 | 母版 + 四副本（与 db.js 既有约定一致），母版头写同步命令 |
+| echo 乱码 | Windows GBK 控制台输出进截图报告 | subprocess 输出按 utf-8→gbk 依次尝试解码；「0 命中」改用命令退出码 + 输出包含判断 |
+| 超长 slug 演示 500 | 只会 404（输入错），触发不了服务端错 | 服务端错不线上故意打挂——用与 toErrorResponse 形状一致的等价构造演示（如实标注「模拟」），真实英文原文兜底由冒烟脚本验证 |

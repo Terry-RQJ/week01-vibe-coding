@@ -43,7 +43,11 @@
       })
       .catch(function (err) {
         clearTimeout(timer);
-        return { status: 0, ok: false, body: { error: { message: "请求失败：" + err.message } } };
+        // Day 23：不再把 err.message（英文网络栈信息）直接拼给用户；
+        // 按类别给中文提示，技术细节放 detail 供 F12 查看
+        var kind = (err && err.kind) || (err && err.name === "AbortError" ? "network" : "network");
+        var text = kind === "network" ? "网络不太顺，请稍后再试一次" : "请求没能完成，请稍后再试";
+        return { status: 0, ok: false, body: { ok: false, error: { code: "NETWORK_ERROR", kind: kind, message: text, detail: String(err && err.message || err) } } };
       });
   }
 
@@ -63,7 +67,10 @@
         setStatus("health-status", true,
           "正常 · service=" + b.service + " · version=" + b.version + " · 服务器时间 " + b.time);
       } else {
-        setStatus("health-status", false, "异常 · HTTP " + r.status + " · " + JSON.stringify(b).slice(0, 200));
+        // Day 23：不再把整个响应体 JSON.stringify 直出（可能含内部细节）；
+        // 优先用后端返回的中文 message，没有才按状态兜底
+        var em = (b && b.error && b.error.message) || "健康检查没通过，请稍后再试";
+        setStatus("health-status", false, em + "（HTTP " + r.status + "）");
       }
       touchUpdated();
     });
@@ -295,7 +302,81 @@
     });
   }
 
-  /* ---------- 启动 ---------- */
+  /* ---------- ⑤ 错误提示演示（Day 23）----------
+   * 三类错误各触发一次真实请求，把后端的完整响应（code / kind / message）打到结果区。
+   * 要点：三类都必须是中文人话，且 message 里不出现数据库英文原文/字段名/堆栈。
+   */
+
+  function showErrorResult(title, r) {
+    var el = document.getElementById("error-result");
+    if (!el) return;
+    var b = r.body || {};
+    var err = b.error || {};
+    var lines = [
+      title + " → HTTP " + (r.status || 0),
+      "code  = " + (err.code || "-"),
+      "kind  = " + (err.kind || "-") + "   （input=输入错 / network=网络错 / server=服务端错）",
+      "message = " + (err.message || "-")
+    ];
+    if (err.detail) lines.push("detail（内部细节，只给开发看） = " + err.detail);
+    el.textContent = lines.join("\n");
+    el.className = "check-result " + (r.ok ? "is-ok" : "is-bad");
+    touchUpdated();
+  }
+
+  /** ① 输入错：故意传一个不合法的 category，触发 400 */
+  function demoInputError() {
+    var field = document.getElementById("err-input-field");
+    var bad = (field && field.value.trim()) || "hack-category";
+    return request("/cards?category=" + encodeURIComponent(bad)).then(function (r) {
+      showErrorResult("① 输入错 · GET /cards?category=" + bad, r);
+    });
+  }
+
+  /** ② 网络错：请求一个不存在的路径，让网关/函数都接不住 → 走网络错分支 */
+  function demoNetworkError() {
+    // 用一个必定连不上的超短超时来触发 AbortError（网络错的典型来源）
+    return new Promise(function (resolve) {
+      var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 1);  // 1ms 必超时
+      fetch(API_BASE + "/cards?limit=50", { signal: ctrl ? ctrl.signal : undefined })
+        .then(function (res) { clearTimeout(timer); return res.text().then(function (t) {
+          resolve({ status: res.status, ok: res.ok, body: (function () { try { return JSON.parse(t); } catch (e) { return t; } })() });
+        }); })
+        .catch(function (err) {
+          clearTimeout(timer);
+          resolve({
+            status: 0, ok: false,
+            body: { ok: false, error: { code: "NETWORK_ERROR", kind: "network",
+              message: "请求超时了，请检查网络后重试", detail: String(err && err.message || err) } }
+          });
+        });
+    }).then(function (r) { showErrorResult("② 网络错 · 1ms 超时模拟断网", r); });
+  }
+
+  /** ③ 服务端错：模拟后端内部异常（真实触发需要破坏线上环境，这里用等价的本地构造） */
+  function demoServerError() {
+    // 说明：真正的 500 只在服务器内部出故障时发生（如数据库挂了），
+    // 不该为了演示去故意打挂线上。这里用「后端出错时会返回什么」的等价构造，
+    // 形状与云函数 common/errors.js 的 toErrorResponse 输出完全一致。
+    return Promise.resolve({
+      status: 500, ok: false,
+      body: { ok: false, error: {
+        code: "DB_REQUEST_FAILED", kind: "server",
+        message: "服务器开小差了，稍后再试",
+        detail: "（模拟）后端日志里才会有：connect ECONNREFUSED 10.0.0.5:5432"
+      } }
+    }).then(function (r) { showErrorResult("③ 服务端错 · 模拟后端内部异常", r); });
+  }
+
+  /** ③-b 服务端错（真实）：用一个未定义的超长路径打网关，看返回是否仍是中文 */
+  function demoServerErrorReal() {
+    return request("/not-a-real-endpoint-xyz").then(function (r) {
+      // 网关层 404 也应该是人话；如果返回 HTML/英文则说明还有裸报错
+      var t = (typeof r.body === "string") ? r.body.slice(0, 120) : JSON.stringify(r.body).slice(0, 120);
+      showErrorResult("③-b 未定义路径（网关层）", { status: r.status, ok: r.ok, body: r.body });
+    });
+  }
 
   document.addEventListener("DOMContentLoaded", function () {
     checkHealth();
@@ -324,5 +405,13 @@
     });
     var dlg = document.getElementById("confirm-dialog");
     if (dlg) dlg.addEventListener("close", function () { pendingDeleteId = null; });
+
+    // ⑤ 三类错误演示（Day 23）
+    var bErrInput = document.getElementById("btn-err-input");
+    var bErrNet = document.getElementById("btn-err-network");
+    var bErrSvr = document.getElementById("btn-err-server");
+    if (bErrInput) bErrInput.addEventListener("click", function () { demoInputError(); });
+    if (bErrNet) bErrNet.addEventListener("click", function () { demoNetworkError(); });
+    if (bErrSvr) bErrSvr.addEventListener("click", function () { demoServerError(); });
   });
 })();

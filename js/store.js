@@ -27,24 +27,70 @@
   var API_BASE = "https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api";
   var API_TIMEOUT = 5000;
 
-  /** fetch 带 4xx/5xx/超时统一 reject；resolve 响应里的 data 字段 */
+  /* ---------- Day 23：三类错误统一中文文案 ----------
+   * ① 输入错（4xx）——服务端校验没过，用后端返回的中文文案
+   * ② 网络错（超时/断网/连不上）——提示重试
+   * ③ 服务端错（5xx）——不暴露内部细节，统一「开小差」 */
+  var ERR_TEXT = {
+    network: "网络不太顺，请稍后再试一次",
+    server: "服务器开小差了，稍后再试",
+    unknown: "请求没能完成，请稍后再试"
+  };
+
+  /** 造一个带 kind 的中文错误（前端侧，与云函数 common/errors.js 的 kind 对齐） */
+  function makeUiErr(kind, message, status) {
+    var e = new Error(message || ERR_TEXT[kind] || ERR_TEXT.unknown);
+    e.kind = kind;
+    if (status) e.status = status;
+    return e;
+  }
+
+  /** 按 HTTP 状态归类前端错误 */
+  function kindByStatus(status) {
+    if (status >= 400 && status < 500 && status !== 408) return "input";
+    if (status === 408 || status === 502 || status === 503 || status === 504) return "network";
+    return "server";
+  }
+
+  /** fetch 带 4xx/5xx/超时统一 reject（错误的 message 一律中文）；resolve 响应里的 data 字段 */
   function apiGet(path) {
-    if (!window.fetch) return Promise.reject(new Error("no fetch"));
+    if (!window.fetch) return Promise.reject(makeUiErr("network", "当前浏览器不支持网络请求"));
     var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, API_TIMEOUT);
     return fetch(API_BASE + path, { method: "GET", signal: ctrl ? ctrl.signal : undefined })
       .then(function (res) {
         clearTimeout(timer);
         if (!res.ok) {
-          var e = new Error("HTTP " + res.status);
-          e.status = res.status;
-          throw e;
+          // Day 23：不再抛 "HTTP 500" 这种裸格式——先读后端的中文 error.message，读不到再按类别兜底
+          return res.text().then(function (t) {
+            var msg = "";
+            try { msg = (JSON.parse(t).error || {}).message || ""; } catch (e2) { /* 非 JSON 就当没有 */ }
+            var kind = kindByStatus(res.status);
+            if (!msg) msg = (kind === "input") ? "请求参数有问题，请检查后重试" : ERR_TEXT[kind];
+            throw makeUiErr(kind, msg, res.status);
+          });
         }
         return res.json();
       })
       .then(function (j) {
-        if (!j || j.ok !== true) throw new Error((j && j.error && j.error.message) || "API error");
+        if (!j || j.ok !== true) {
+          var em = (j && j.error && j.error.message) || "数据没能正常返回";
+          var ek = (j && j.error && j.error.kind) || "server";
+          throw makeUiErr(ek, em);
+        }
         return j.data;
+      })
+      .catch(function (err) {
+        clearTimeout(timer);
+        // AbortController 触发的中断 = 超时，归为网络错
+        if (err && (err.name === "AbortError" || err.message === "The user aborted a request.")) {
+          throw makeUiErr("network", "请求超时了，请检查网络后重试");
+        }
+        // TypeError: Failed to fetch = 断网 / 域名解析失败，也是网络错
+        if (err && err.name === "TypeError") {
+          throw makeUiErr("network", ERR_TEXT.network);
+        }
+        throw err;
       });
   }
 

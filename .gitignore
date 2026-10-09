@@ -1,9 +1,13 @@
 # ===== 环境变量与密钥（重要：绝不上传）=====
+# 忽略所有 .env 变体，但放行不含真实值的模板文件 .env.example（Day 23 补）
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.key
 *.pem
+*.p12
+credentials.json
+serviceAccountKey.json
 
 # ===== 依赖目录 =====
 node_modules/

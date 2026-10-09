@@ -6,6 +6,7 @@
  */
 'use strict';
 
+const { toErrorResponse } = require('./errors');
 const cardsRepository = require('./cardsRepository');
 
 function json(status, obj) {
@@ -20,20 +21,26 @@ function json(status, obj) {
 }
 
 exports.main = async (event) => {
+  // 加练（Day 23）：一行 JSON 请求日志
+  console.log(JSON.stringify({
+    t: new Date().toISOString(), fn: 'apiCategories', action: 'in',
+    method: (event && event.httpMethod) || 'GET', path: (event && event.path) || ''
+  }));
   try {
     if (event && event.httpMethod && event.httpMethod === 'OPTIONS') {
       return { statusCode: 204, headers: {}, body: '' };
     }
     if (event && event.httpMethod && event.httpMethod !== 'GET') {
-      return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', message: '只支持 GET' } });
+      return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', kind: 'input', message: '只支持 GET' } });
     }
     // 查数据：一句 repository，入口不碰 SQL
     const rows = await cardsRepository.countByCategory();
     return json(200, { ok: true, data: rows.map(r => ({ ...r, count: Number(r.count) })) });
   } catch (e) {
-    return json(e.status || 500, {
-      ok: false,
-      error: { code: e.code || 'INTERNAL', message: e.message || '服务内部错误' }
+    // Day 23：统一中文错误映射（同 apiCards）
+    return toErrorResponse(e, function (code, info) {
+      console.log(JSON.stringify(Object.assign(
+        { t: new Date().toISOString(), fn: 'apiCategories', action: 'error', code: code }, info)));
     });
   }
 };

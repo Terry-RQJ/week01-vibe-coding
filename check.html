@@ -88,6 +88,24 @@
           </div>
           <pre class="check-result" id="modify-result">（还没操作过）</pre>
         </div>
+
+        <!-- ⑤ 错误提示演示（Day 23）-->
+        <div class="check-block" id="block-errors">
+          <h2>⑤ 错误提示演示 <code>三类错误的统一中文提示</code></h2>
+          <p class="check-note">点下面三个按钮，分别触发<b>输入错</b>（400/404）、<b>网络错</b>（超时/断网）、
+            <b>服务端错</b>（500）。三类都应回中文人话，且不出现数据库英文原文、字段名、堆栈等内部细节。</p>
+          <div class="check-form">
+            <button type="button" class="check-btn" id="btn-err-input">① 输入错示例</button>
+            <button type="button" class="check-btn" id="btn-err-network">② 网络错示例</button>
+            <button type="button" class="check-btn" id="btn-err-server">③ 服务端错示例</button>
+          </div>
+          <div class="check-form" style="margin-top: var(--space-2);">
+            <label for="err-input-field">输入错的字段值：</label>
+            <input id="err-input-field" type="text" value="hack-category" maxlength="64">
+            <span class="check-note" style="margin: 0;">（这个值故意非法，用来触发 400）</span>
+          </div>
+          <pre class="check-result" id="error-result">（还没触发过）</pre>
+        </div>
       </section>
     </div>
   </main>

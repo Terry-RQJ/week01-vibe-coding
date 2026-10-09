@@ -8,6 +8,7 @@
 'use strict';
 
 const { makeErr } = require('./db');
+const { toErrorResponse } = require('./errors');
 const cardsRepository = require('./cardsRepository');
 const lawsRepository = require('./lawsRepository');
 
@@ -59,13 +60,18 @@ async function getCard(slug) {
 
 // ---------- 入口 ----------
 exports.main = async (event) => {
+  // 加练（Day 23）：一行 JSON 请求日志——时间、方法、路径
+  console.log(JSON.stringify({
+    t: new Date().toISOString(), fn: 'apiCards', action: 'in',
+    method: (event && event.httpMethod) || 'GET', path: (event && event.path) || ''
+  }));
   try {
     if (event && event.httpMethod && event.httpMethod === 'OPTIONS') {
       // CORS 预检（GET 简单请求本不触发，浏览器扩展/工具可能发）
       return { statusCode: 204, headers: {}, body: '' };
     }
     if (event && event.httpMethod && event.httpMethod !== 'GET') {
-      return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', message: '只支持 GET' } });
+      return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', kind: 'input', message: '只支持 GET' } });
     }
     const q = (event && event.queryStringParameters) || {};
     // 路径形态 /api/cards/<slug> → 详情；否则看 ?slug= 也进详情（兜底）
@@ -77,9 +83,11 @@ exports.main = async (event) => {
     if (slug) return await getCard(slug);
     return await listCards(q);
   } catch (e) {
-    return json(e.status || 500, {
-      ok: false,
-      error: { code: e.code || 'INTERNAL', message: e.message || '服务内部错误' }
+    // Day 23：统一中文错误映射——输入错回校验文案，网络/服务端错回人话兜底，
+    // 数据库原始英文报错只进日志（不再像以前那样 e.message 直出给用户）
+    return toErrorResponse(e, function (code, info) {
+      console.log(JSON.stringify(Object.assign(
+        { t: new Date().toISOString(), fn: 'apiCards', action: 'error', code: code }, info)));
     });
   }
 };
