@@ -124,3 +124,21 @@ Vibe Coding/                          ← 项目根 = 网站根（GitHub Pages �
 5. 「写给读者要打比方」—— 超过 5 行没有生活例子的段落必须重写
 
 完整列表与理由读 `AGENTS.md`。
+
+---
+
+## 发布前检查（Day 25 新增）
+
+每次部署云函数/静态托管之后、`git push` 之前，跑一遍项目自带的检查 Skill：
+
+```bash
+# 离线检查（约 2 秒，不需要网络与密钥）
+python .workbuddy/skills/verify-project/scripts/preflight.py
+
+# 追加公网检查（health / 读接口 / CORS 白名单 / Day 24 三 Bug 线上回归）
+python .workbuddy/skills/verify-project/scripts/preflight.py --online
+```
+
+- **20 项检查全部来自本项目真实踩过的坑**（密钥防线、裸报错泄露、Day 24 三个输入校验 Bug、绝对路径、dist 漏同步、CORS 双值……），每项写明「怎么算通过」，输出逐项 PASS/FAIL + 证据，退出码 0/1 可接脚本。
+- 检查项出处与「明确不检查的事」见 `.workbuddy/skills/verify-project/references/pitfalls.md`；用法详见 `.workbuddy/skills/verify-project/SKILL.md`。
+- 全部 PASS 后再提交推送；发现 FAIL 先看证据行，对照 pitfalls.md 里的历史坑修复。
