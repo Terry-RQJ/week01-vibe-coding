@@ -508,6 +508,28 @@ a:hover { text-decoration: underline; }
 /* Day 9 修复：opacity .6（对比度约 3.2:1，不达 WCAG AA）提到 .78 */
 .site-footer .meta { opacity: .78; margin-top: var(--space-4) !important; }
 
+/* ===== Day 26：v1.0.0 发布版本标记 =====
+   作用有二：① 对外标识当前发布版本；② 回滚演练时作为「当前部署的是哪一版」的可视证据
+   （旧版本没有这个徽标 → 截图对比一眼可辨）。故刻意不放在 .meta 里，避免被 .78 透明度削弱。 */
+.site-footer .ver {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9rem;
+}
+.site-footer .ver-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  color: #FFFFFF;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 /* ========== 平板 ≥ 768（PRD §5.2 双列） ========== */
 @media (min-width: 768px) {
   .card-grid { grid-template-columns: repeat(2, 1fr); }
