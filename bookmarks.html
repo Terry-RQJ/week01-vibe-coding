@@ -41,6 +41,12 @@
           </div>
         </div>
         <p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">你关心的情形都在这里（用首页的 ☆ 收藏）。</p>
+        <!-- Day 28 加练：导出收藏（JSON）。兑现 TECH_DESIGN 的「跨设备搬收藏用导出 JSON、不上云」——
+             导出在浏览器本地生成文件，不经过任何服务器。没有收藏时这行隐藏。 -->
+        <p id="export-row" style="display: none; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3);">
+          <button type="button" id="export-fav" class="check-btn check-btn-ghost check-btn-sm">⬇ 导出收藏（JSON 备份）</button>
+          <span style="font-size: var(--font-size-sm); color: var(--color-fg-soft);">导出的文件存在你自己电脑上，不经过服务器；换设备时可凭它手动抄回。</span>
+        </p>
         <div id="card-area" style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
           <!-- 四种状态由 js/page-bookmarks.js 渲染 -->
         </div>
