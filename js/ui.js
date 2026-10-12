@@ -7,6 +7,12 @@
 (function () {
   "use strict";
 
+  /* Day 29：近似结果（matchMode === 'fuzzy'）最多展示几张。
+   * 2 字切片召回天然带噪音，与其把 20 多张不相关的卡全倒出来，
+   * 不如给前几条 + 一句「换个更短的关键词」的引导。
+   * 这是**展示策略**，所以放在渲染层，不放数据层。 */
+  var FUZZY_SHOW_MAX = 6;
+
   /** ---------- 共用工具（window.UI 暴露给所有页面）---------- */
 
   /** HTML 转义（数据渲染的最低防线，TECH_DESIGN §9）*/
@@ -65,7 +71,8 @@
       '</div>';
   }
 
-  /** kind: 'empty'（无匹配关键词）/ 'empty-cat'（某分类暂无内容）/ 'empty-coll'（收藏为空）/ 'empty-hist'（历史为空）*/
+  /** kind: 'empty'（无匹配关键词）/ 'empty-cat'（某分类暂无内容）/ 'empty-coll'（收藏为空）/ 'empty-hist'（历史为空）
+   * Day 29：opts.recommend = [{slug,title,category}]，彻底搜不到时给几条「为你推荐」兜底 */
   function renderEmpty(area, opts) {
     opts = opts || {};
     var kind = opts.kind || "empty";
@@ -81,7 +88,7 @@
 
     if (kind === "empty" && keyword) {
       badge = "没有找到相关内容";
-      main = '换个关键词试试（比如「押金」「劝退」），或直接搜法条（如「劳动合同法」）。';
+      main = '换个关键词试试（比如「押金」「加班费」「彩礼」），也能直接搜法条（如「劳动合同法」「民法典」）。';
       hint = "清空搜索框即可恢复完整列表。";
     } else if (kind === "empty-card") {
       badge = "没找到这个情形";
@@ -100,11 +107,28 @@
       linkHtml = '<p style="margin-top: var(--space-3);"><a href="./index.html" class="state-link">去首页逛逛 →</a></p>';
     }
 
+    // Day 29：搜不到时别让用户撞墙——给三条现成的情形
+    var recHtml = "";
+    var rec = opts.recommend || [];
+    if (rec.length) {
+      recHtml =
+        '<div class="empty-recommend">' +
+          '<p class="empty-recommend-h">要不要先看看这几个？</p>' +
+          '<ul class="empty-recommend-list">' +
+            rec.map(function (c) {
+              return '<li><a href="./card.html?slug=' + esc(c.slug) + '">' + esc(c.title) + '</a>' +
+                '<span class="empty-recommend-cat">' + esc(c.category) + '</span></li>';
+            }).join("") +
+          '</ul>' +
+        '</div>';
+    }
+
     area.innerHTML =
       '<div class="state-box state-empty" role="status">' +
         '<span class="badge">' + esc(badge) + '</span>' +
         '<p>' + main + '</p>' +
         (hint ? '<p style="margin-top: var(--space-2); font-size: var(--font-size-sm);">' + esc(hint) + '</p>' : "") +
+        recHtml +
         linkHtml +
       '</div>';
   }
@@ -120,6 +144,26 @@
     if (btn && typeof retryFn === "function") {
       btn.addEventListener("click", retryFn);
     }
+  }
+
+  /** Day 29：搜索结果下半区——把命中的法条原文直接摊开（用户要的「直接查到法条」）
+   *  每条都回链到所属情形，也带上官方出处，让人能自己核。 */
+  function lawsSectionHtml(laws) {
+    var items = laws.map(function (l) {
+      return (
+        '<li class="law-result">' +
+          '<p class="law-result-name">' + esc(l.name) + '</p>' +
+          '<p class="law-result-text">' + esc(l.text) + '</p>' +
+          '<p class="law-result-from">出自 <a href="./card.html?slug=' + esc(l.cardSlug) + '">' + esc(l.cardTitle) + '</a>' +
+            (l.source_url
+              ? ' · <a href="' + esc(l.source_url) + '" target="_blank" rel="noopener noreferrer">官方原文 ↗</a>'
+              : '') +
+          '</p>' +
+        '</li>'
+      );
+    }).join("");
+    return '<h3 class="result-h">相关法条 <span class="result-count">' + laws.length + '</span></h3>' +
+      '<ul class="law-result-list">' + items + '</ul>';
   }
 
   /** 渲染卡片网格（首页列表 / 收藏列表 / 浏览列表 共用） */
@@ -152,7 +196,15 @@
       return;
     }
 
-    var html = cards.map(function (c) {
+    var keyword = opts.keyword || "";
+    var matchMode = opts.matchMode || "";
+    var matchedLaws = opts.matchedLaws || [];
+    var isSearch = !!keyword;
+    var isFuzzy = isSearch && matchMode === "fuzzy";
+    // 近似结果只展示前几条（见文件头 FUZZY_SHOW_MAX 的说明）
+    var shown = isFuzzy ? cards.slice(0, FUZZY_SHOW_MAX) : cards;
+
+    var html = shown.map(function (c) {
       var lawNames = (c.laws || []).map(function (l) { return esc(l.name); }).join("、");
       return (
         '<article class="card">' +
@@ -160,7 +212,7 @@
           '<p class="summary">' + esc(c.summary) + '</p>' +
           '<div class="card-meta">' +
             '<span class="card-tag">' + esc(c.category) + '</span>' +
-            '<span>📄 ' + lawNames + '</span>' +
+            (lawNames ? '<span>📄 ' + lawNames + '</span>' : '') +
             '<span>· 核验 ' + esc(c.last_verified_at) + '</span>' +
             (showFav ? favBtnHtml(c.slug) : '') +
           '</div>' +
@@ -170,20 +222,46 @@
 
     var conditions = [];
     if (opts.catName) conditions.push('已筛选「' + esc(opts.catName) + '」');
-    if (opts.keyword) conditions.push('搜索「' + esc(opts.keyword) + '」');
+    if (keyword) conditions.push('搜索「' + esc(keyword) + '」');
     var countLine;
     if (conditions.length > 0) {
-      var undo = opts.keyword ? '（清空搜索框恢复）' : '（再点一次该分类恢复全部）';
+      var undo = keyword ? '（清空搜索框恢复）' : '（再点一次该分类恢复全部）';
       countLine = conditions.join(' · ') + '：共 ' + cards.length + ' 个情形' + undo;
     } else if (subtitle2) {
       countLine = subtitle2;
     } else {
-      countLine = '共 ' + cards.length + ' 个情形（示例数据 · Day 8–14 滚动补充到 12 个）';
+      countLine = '共 ' + cards.length + ' 个情形（六大类共 24 张，每类 4 张）';
     }
+
+    // Day 29：近似匹配时给一句明话，别让用户以为搜错了
+    var notice = "";
+    if (isFuzzy) {
+      notice =
+        '<p class="search-notice" role="status">' +
+          '没有完全匹配「' + esc(keyword) + '」的内容，以下是 ' + cards.length + ' 个近似结果' +
+          (cards.length > shown.length ? '（先显示前 ' + shown.length + ' 个）' : '') +
+          '。用更短的词更准，也能直接搜法条名（如「劳动合同法」）。' +
+        '</p>';
+    }
+
+    // Day 29：搜索时分区——上半「相关情形」，下半「相关法条」
+    var sections;
+    if (isSearch) {
+      sections =
+        '<h3 class="result-h">相关情形 <span class="result-count">' + cards.length + '</span></h3>' +
+        (cards.length
+          ? '<div class="card-grid" style="padding: 0;">' + html + '</div>'
+          : '<p class="result-none">没有匹配的情形。</p>') +
+        (matchedLaws.length ? lawsSectionHtml(matchedLaws) : '');
+    } else {
+      sections = '<div class="card-grid" style="padding: 0;">' + html + '</div>';
+    }
+
     area.innerHTML =
       '<div class="state-success">' +
         '<p role="status" aria-live="polite" style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">' + countLine + '</p>' +
-        '<div class="card-grid" style="padding: 0;">' + html + '</div>' +
+        notice +
+        sections +
       '</div>';
   }
 
@@ -355,6 +433,28 @@
   var activeKeyword = "";
   var loadSeq = 0;
 
+  /** 搜不到时给的「为你推荐」：从各分类轮流取（3 张来自 3 个不同分类，覆盖面更广；
+   *  若只按时间取最新 3 张，实测会全是同一类，推荐就失去了「逛逛」的意义） */
+  function pickRecommend(all, n) {
+    var byCat = {};
+    (all || []).forEach(function (c) {
+      if (!c || !c.slug || !c.title) return;
+      var k = c.category_id || c.category || "?";
+      (byCat[k] = byCat[k] || []).push(c);
+    });
+    var cats = Object.keys(byCat);
+    var out = [];
+    for (var round = 0; out.length < n; round++) {
+      var took = false;
+      for (var j = 0; j < cats.length && out.length < n; j++) {
+        var c = byCat[cats[j]][round];
+        if (c && out.indexOf(c) === -1) { out.push(c); took = true; }
+      }
+      if (!took) break;
+    }
+    return out;
+  }
+
   function loadCards(forceState, categoryId, keyword) {
     var mySeq = ++loadSeq;
     keyword = (keyword || "").trim();
@@ -362,14 +462,40 @@
     if (forceState === "error") { UI.renderError(area, function () { loadCards("success", activeCat, activeKeyword); }); return; }
     UI.renderLoading(area);
     window.Store.searchCards(keyword, categoryId)
-      .then(function (cards) {
+      .then(function (res) {
         if (mySeq !== loadSeq) return;
-        if (!cards || cards.length === 0) {
-          UI.renderEmpty(area, { kind: keyword ? "empty" : "empty-cat", catName: categoryId ? Store.CATEGORY_NAME[categoryId] : null, keyword: keyword });
+        // Day 29：searchCards 现在返回 { cards, matchMode, matchedLaws }
+        var cards = (res && res.cards) || [];
+        var matchedLaws = (res && res.matchedLaws) || [];
+        var emptyOpts = {
+          kind: keyword ? "empty" : "empty-cat",
+          catName: categoryId ? Store.CATEGORY_NAME[categoryId] : null,
+          keyword: keyword
+        };
+
+        // 真正彻底没结果：情形和法条都为空
+        if (!cards.length && !matchedLaws.length) {
+          if (!keyword) { UI.renderEmpty(area, emptyOpts); return; }
+          // 加了关键词就撞墙太劝退——顺手推荐几条最新的现成情形
+          window.Store.listCards()
+            .then(function (all) {
+              if (mySeq !== loadSeq) return;
+              emptyOpts.recommend = pickRecommend(all, 3);
+              UI.renderEmpty(area, emptyOpts);
+            })
+            .catch(function () {
+              if (mySeq !== loadSeq) return;
+              UI.renderEmpty(area, emptyOpts);
+            });
           return;
         }
+
         UI.renderCardList(area, {
-          cards: cards, catName: categoryId ? Store.CATEGORY_NAME[categoryId] : null, keyword: keyword
+          cards: cards,
+          catName: categoryId ? Store.CATEGORY_NAME[categoryId] : null,
+          keyword: keyword,
+          matchMode: (res && res.matchMode) || "",
+          matchedLaws: matchedLaws
         });
       })
       .catch(function () {

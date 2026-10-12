@@ -23,8 +23,11 @@ def _find_tcb():
     if found:
         return found
     patterns = [
-        r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\tcb.cmd",
+        # Day 29：CLI 实际装在 node/workspace/node_modules/.bin 下（旧 pattern 只扫 versions/*，
+        # 扫不到 → FileNotFoundError: [WinError 2]。补上这两个真实位置）
+        r"C:\Users\Administrator\.workbuddy\binaries\node\workspace\node_modules\.bin\tcb.cmd",
         r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\node_modules\.bin\tcb.cmd",
+        r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\tcb.cmd",
         r"C:\Users\Administrator\AppData\Roaming\npm\tcb.cmd",
     ]
     for p in patterns:
@@ -34,7 +37,41 @@ def _find_tcb():
     return "tcb"  # 兜底：交给系统 PATH，失败时报错更直观
 
 
-TCB = _find_tcb()
+def _build_cli():
+    """返回 subprocess 用的 argv 前缀（Day 29 新增）。
+
+    背景（真踩过的坑）：原来直接调 tcb.cmd。tcb.cmd 是 npm 生成的批处理 shim，
+    必须经 Windows cmd.exe 解析，而 **cmd.exe 的命令行上限是 8191 字符**。
+    6 张卡时代 SQL 短，没暴露；扩到 24 张后 cards 的 INSERT 压平有 10960 字符，
+    被截断，CLI 回一句 GBK 的「命令行太长」——还被 utf-8 解码器吞掉，
+    表现为「无理由失败」。
+
+    解法：用 node 直跑 CLI 的真实入口 js，绕过 cmd.exe
+    （CreateProcess 的上限是 32767，宽裕得多，且不再有批处理引号解析问题）。
+    """
+    import shutil
+    node = None
+    for p in ([os.environ.get("NODE_EXE")]
+              + glob.glob(r"C:\Users\Administrator\.workbuddy\binaries\node\versions\*\node.exe")
+              + [shutil.which("node")]):
+        if p and os.path.isfile(p):
+            node = p
+            break
+    js = None
+    for p in ([os.environ.get("TCB_JS")]
+              + glob.glob(r"C:\Users\Administrator\.workbuddy\binaries\node\workspace"
+                          r"\node_modules\@cloudbase\cli\bin\tcb")):
+        if p and os.path.isfile(p):
+            js = p
+            break
+    if node and js:
+        return [node, js]
+    return [_find_tcb()]  # 兜底：回到 .cmd（受 8191 限制，长语句会失败）
+
+
+CLI = _build_cli()
+# cmd.exe 走不通、node 直调也吃不下的极端长度（本项目 24 张卡不到 11000，留 3 倍余量）
+MAX_SQL_CHARS = 30000
 
 def _flatten(sql):
     """去掉 -- 注释、换行压成空格。
@@ -48,6 +85,17 @@ def _flatten(sql):
         lines.append(l)
     return " ".join(x.strip() for x in lines if x.strip())
 
+def _decode(b):
+    """CLI 输出可能是 UTF-8（JSON）也可能是 GBK（Windows 中文报错）。
+    先按 UTF-8 严格解码，失败再按 GBK——这样两边都不乱码。"""
+    if not b:
+        return ""
+    try:
+        return b.decode("utf-8")
+    except UnicodeDecodeError:
+        return b.decode("gbk", "replace")
+
+
 def tcb_sql(sql):
     """执行 SQL，返回 (ok, stdout)。多语句按 ; 拆分逐条执行
     （tcb db execute 的多语句 blob 是假成功——只跑最后一条且无副作用，实测坑）"""
@@ -57,13 +105,18 @@ def tcb_sql(sql):
         flat = _flatten(s)
         if not flat:
             continue
+        # Day 29：原 text=True + encoding=utf-8 时，CLI 的 GBK 报错会让读取线程抛
+        # UnicodeDecodeError，真实报错被吞 → 误判成"假失败"。改二进制读 + replace 解码。
+        if len(flat) > MAX_SQL_CHARS:
+            return False, ("SQL 太长（%d 字符 > %d），请拆小后重试。"
+                           % (len(flat), MAX_SQL_CHARS))
         r = subprocess.run(
-            [TCB, "db", "execute", "-e", ENV, "--sql", flat, "--json"],
-            capture_output=True, text=True, encoding="utf-8", timeout=60)
-        out = (r.stdout or "") + (r.stderr or "")
-        last_out = out.strip()
+            CLI + ["db", "execute", "-e", ENV, "--sql", flat, "--json"],
+            capture_output=True, timeout=180)
+        out = (_decode(r.stdout) + _decode(r.stderr)).strip()
+        last_out = out
         if '"error"' in out or r.returncode != 0:
-            return False, ("STMT>>>" + flat[:120] + "\n" + out.strip())
+            return False, ("STMT_LEN=%d\n" % len(flat) + "STMT>>>" + flat[:200] + "\n" + out)
     return True, last_out
 
 def read(name):

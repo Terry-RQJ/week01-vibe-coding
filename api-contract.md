@@ -27,7 +27,7 @@
 
 > 第 2 周的 `data/cards.js` 是静态常量；改 CloudBase 后这部分要走 API。
 
-### 1.1 `GET /api/cards` ✅ 已实现（Day 17）
+### 1.1 `GET /api/cards` ✅ 已实现（Day 17；Day 29 加搜索三段式 + 命中法条）
 
 **用途**：首页卡片网格（替代 `Store.listCards()`）。
 
@@ -39,6 +39,18 @@
 | `keyword` | string | 否 | 关键词，匹配范围：标题 / 摘要 / 情景 / 标签 / 应对步骤 / 法条名称+原文。空字符串 = 全量 |
 | `limit` | int | 否 | 返回条数上限（Day 17 加练，1–50，默认 12） |
 
+**关键词检索三段式（Day 29 新增）**——传了 `keyword` 时按顺序走，命中即停：
+
+| 阶段 | `matchMode` | 触发条件 | 行为 |
+|---|---|---|---|
+| ① 精确 | `exact` | 整串关键词命中 | 返回命中的卡片，语义与 Day 17 完全一致 |
+| ② 近似 | `fuzzy` | ① 返回 0 条 | 把关键词切成 2 字片段，**任一命中即召回**，按 `标题命中片段数 > 命中片段总字数 > 命中片段个数` 排序 |
+| ③ 无 | `none` | ② 仍为 0 条 | `data: []`，前端据此展示「为你推荐」 |
+
+> 加近似的理由：纯子串匹配对**长句提问**太苛刻。用户敲「公司不给加班费怎么办」，全站没有一个字段含这句话，
+> 结果就是 0 条；切成 2 字片段后「加班」「班费」能把「加班费」那张卡捞回来。
+> 代价是召回噪音变大，因此靠排序（标题命中优先）把最相关的顶到前面，前端在 `fuzzy` 模式下加显著提示并截断展示。
+
 **响应 200**（实际返回）：
 
 ```json
@@ -48,17 +60,51 @@
     {
       "slug": "gongsi-quantui",
       "title": "公司劝退我，该怎么办？",
-      "summary": "公司谈辞退时只提 N，没有 +1，该不该签？",
+      "summary": "就像快递员说要「协商退货」——你可以答应，也可以拒收。公司说「你主动辞职吧」，主动权其实在你手里。",
       "category": "劳动类",
       "categoryId": "labor",
-      "tags": ["辞退", "经济补偿"],
+      "tags": ["劳动合同", "离职", "补偿金"],
       "published_at": "2026-09-22",
-      "last_verified_at": "2026-09-22"
+      "last_verified_at": "2026-10-12"
     }
   ],
-  "meta": { "total": 6, "limit": 12 }
+  "meta": { "total": 24, "limit": 12 }
 }
 ```
+
+**响应 200（带 `keyword` 时，`meta` 多两个字段）**：
+
+```json
+{
+  "ok": true,
+  "data": [ { "slug": "fangdong-bu-tui-yajin", "...": "字段同上" } ],
+  "meta": {
+    "total": 1,
+    "limit": 50,
+    "matchMode": "exact",
+    "matchedLaws": [
+      {
+        "name": "《民法典》第 714 条",
+        "text": "承租人经出租人同意，可以将租赁物转租给第三人……",
+        "source_url": "https://www.12371.cn/2020/06/01/ARTI1591021670041266.shtml",
+        "cardSlug": "fangdong-bu-tui-yajin",
+        "cardTitle": "房东不退押金，一招制胜"
+      }
+    ]
+  }
+}
+```
+
+**`matchedLaws` 的取数规则（两条来源，缺一不可）**：
+
+1. 法条**自身**的名称或原文命中关键词 —— 搜「劳动合同法」「彩礼」走这条；
+2. **本次命中卡片**所关联的全部法条 —— 搜「押金」时走这条。
+
+> 为什么必须有第 2 条：法条原文里根本没有「押金」二字（民法典 714 条写的是「租赁物转租」），
+> 只按第 1 条取数，用户会看到「搜到了情形、法条区却是空的」。
+> 上限 12 条；法条自身命中的排在卡片带出来的前面。
+
+**无 `keyword` 时 `meta` 不新增字段**，老调用方（`bookmarks.html` 等）不受影响。
 
 **错误 400**：`category` / `limit` 非法 → `{ "ok": false, "error": { "code": "INVALID_PARAM", "message": "category 不在允许范围" } }`
 
@@ -341,11 +387,14 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 
 （`laws`：`id` / `card_slug`(FK) / `name` / `text` / `source_url` / `sort_order`，对应 §1.2 响应的 `laws[]` 数组元素。）
 
-### 6.3 种子数据与验证（Day 16 实测）
+### 6.3 种子数据与验证（Day 16 实测；Day 29 扩充）
 
-- 种子：`data/cards.js` 的 6 张卡 → `cards` 6 行；11 条法条 → `laws` 11 行
+- 种子（Day 29 起）：`db/seed-content.py` 的 **24 张卡 → `cards` 24 行；45 条法条 → `laws` 45 行**（每类 4 张）。
+  该脚本是内容的**唯一源**，一次生成 `db/seed.sql`（入库用）与 `data/cards.js`（离线回落用），
+  `python db/seed-content.py --check` 可校验两份产物是否与源一致。
+- 种子（Day 16 原始）：6 张卡 + 11 条法条。
 - `seed.sql` 用 `TRUNCATE ... RESTART IDENTITY CASCADE` 先清再插，重复执行不报错、结果一致（已连跑 2 遍验证）
-- select 验证（云端真实执行）：每表 ≥5 行 ✅、`JOIN` 关联每卡法条数（1–3 条/卡）✅、`GROUP BY category_id` 聚合 = §1.3 的 count ✅、外键与 CHECK 约束拦截非法插入 ✅
+- select 验证（云端真实执行）：每表 ≥5 行 ✅、`JOIN` 关联每卡法条数（1–3 条/卡）✅、`GROUP BY category_id` 聚合 = §1.3 的 count ✅（Day 29 复验：6 个分类各 4 张 ✅）、外键与 CHECK 约束拦截非法插入 ✅
 
 ---
 
@@ -367,3 +416,4 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 - 2026-10-07 · Day 22：§2B.3 `PATCH ?id=` 与 §2B.4 `DELETE ?id=` **部署并通过线上增删改查四类闭环验证**（SELECT 前后对比：note 空 → 改后新值 → 删后 `is_deleted=true`，行保留可找回）。`favorites` 补 `note`（≤200）/ `is_deleted` 两列，唯一约束升级为部分唯一索引（软删后可重新收藏，修复「软删再收藏撞 23505」的隐患）；删除统一软删除（`POST on:false` 的取消同样置标记）；GET / POST 响应补 `id`（/ `note`）字段供按 id 操作；PATCH 白名单校验（只许改 note）+ id 存在性 404 中文报错。前端删除加二次确认（原生 `<dialog>`，确认在发请求之前），`check.html` 新增 ④ 修改与删除板块并同步公网 dist。
 - 2026-10-09 · Day 23：**安全审计 + 三类错误提示统一**。新增 `kind` 字段（input/network/server，§0 已更新）；四个函数 catch 统一接 `errors.js toErrorResponse`——修掉 cards/categories 入口 `e.message` 直出（数据库英文原文曾会透传给用户）、db.js 网关报错透传、`DB_NOT_CONFIGURED` 暴露环境变量名三处裸报错；health 补 `ok:false` + try/catch。密钥排查：全历史 43 提交逐个扫描 0 真实密钥（文档里的 `git grep eyJ` 检查命令字样已逐条人工甄别）；`.gitignore` 加固（`.env.*` 通配 + `!.env.example` + credentials 类文件）；新增 `.env.example` 模板。安全自查清单见 `docs/security-checklist.md`（每项含验证方法）；前端 store.js / page-check.js 同步接入三类中文文案。
 - 2026-10-09 · Day 24：**修复真实 Bug：刁钻输入把 favorites 打挂**。三处修复（均在 `functions/api/favorites/index.js`）：① body 为 `null`/数组/数字等**非对象**时曾 500（`Cannot convert undefined or null to object`），现 400 中文提示；② `id` 校验曾被 `Number()` 静默放行 `1e2`/`+1`/`0x10`/`1.5`，现白名单正则拦截；③ `note` 长度改按**码点**计（与数据库 VARCHAR(200) 对齐），200 个 emoji 不再被误拒。前端 `edit-note` maxlength 200→400 码元（emoji 算 2），最终判断权交后端。回归：本地 `docs/day24-regression.js` 29/29、线上 25/25；四步证据（复现/定位/修复/验证）见 `docs/day24-bugfix-log.md`。§2B.2/§2B.3 校验描述已同步。
+- 2026-10-12 · Day 29：**§1.1 搜索升级为三段式 + 新增命中法条回带**（路径、参数、`data` 形状、无 keyword 时的响应**零改动**，只新增 `meta` 字段）。内容库 6 → **24 张卡 / 45 条法条**（每类 4 张），由 `db/seed-content.py` 作为**唯一内容源**一次生成 `db/seed.sql` 与 `data/cards.js`，从机制上消除「线上有、断网没有」的两份副本走偏。`meta.matchedLaws`（≤12 条）支撑「直接查到法条」，取数含「法条自身命中」+「命中卡片关联的法条」两条来源；`meta.matchMode` 标注 `exact` / `fuzzy` / `none`。另修 `db/exec.py` 两处环境适配：改用 node 直跑 CLI 入口绕开 cmd.exe 的 8191 字符上限（24 张卡的 INSERT 压平 10960 字符，原先被截断且报错被解码器吞掉）、CLI 输出解码先 UTF-8 后 GBK。行为矩阵与法条核验清单见 `docs/day29-content-and-search.md`。

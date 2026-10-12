@@ -27,6 +27,9 @@
   var API_BASE = "https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api";
   var API_TIMEOUT = 5000;
 
+  /* Day 29：「相关法条」区最多展示几条（与云函数 MATCHED_LAWS_LIMIT 保持一致） */
+  var MATCHED_LAWS_LIMIT = 12;
+
   /* ---------- Day 23：三类错误统一中文文案 ----------
    * ① 输入错（4xx）——服务端校验没过，用后端返回的中文文案
    * ② 网络错（超时/断网/连不上）——提示重试
@@ -52,8 +55,11 @@
     return "server";
   }
 
-  /** fetch 带 4xx/5xx/超时统一 reject（错误的 message 一律中文）；resolve 响应里的 data 字段 */
-  function apiGet(path) {
+  /** fetch 带 4xx/5xx/超时统一 reject（错误的 message 一律中文）；resolve **整个响应信封** { ok, data, meta }
+   *  Day 29：从 apiGet 里拆出来。搜索要读 meta.matchMode / meta.matchedLaws，
+   *  而原来的 apiGet 只返回 j.data，把 meta 丢了。拆开后 apiGet 仍是「只要 data」的老语义，
+   *  老调用点零改动。 */
+  function apiGetFull(path) {
     if (!window.fetch) return Promise.reject(makeUiErr("network", "当前浏览器不支持网络请求"));
     var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, API_TIMEOUT);
@@ -78,7 +84,7 @@
           var ek = (j && j.error && j.error.kind) || "server";
           throw makeUiErr(ek, em);
         }
-        return j.data;
+        return j; // 连 meta 一起交出去
       })
       .catch(function (err) {
         clearTimeout(timer);
@@ -94,6 +100,11 @@
       });
   }
 
+  /** 只要 data 的老语义（页面内容不改行为） */
+  function apiGet(path) {
+    return apiGetFull(path).then(function (j) { return j.data; });
+  }
+
   /** API 优先 + 静态回落的通用包装。localFn 必须返回 Promise */
   function apiOrLocal(path, localFn, trust404) {
     return apiGet(path).catch(function (err) {
@@ -102,6 +113,11 @@
       // 其他失败（断网/超时/5xx）→ 回落静态 mock，保站点可用
       return localFn();
     });
+  }
+
+  /** 同 apiOrLocal，但保留信封：localFn 需 resolve { data, meta }（Day 29） */
+  function apiOrLocalFull(path, localFn) {
+    return apiGetFull(path).catch(function () { return localFn(); });
   }
 
   /* QA 钩子：seed=1 时给空 localStorage 预填演示数据，便于「成功」态截图
@@ -201,6 +217,108 @@
     return parts.join(" ").toLowerCase();
   }
 
+  /* ---------- Day 29：搜索三段式（本地版，与云函数 cardsRepository 同规则）----------
+   * 云函数接口不可用时走这里，行为必须和后端一致，否则「断网」会变成另一个产品。
+   * 规则同步点：① 精确子串 ② 2 字片段近似 + 标题命中优先 ③ 无结果
+   *            matchedLaws 取数 = 法条自身命中 ∪ 命中卡片关联的法条，上限 12 */
+
+  /** 关键词切成「整串 + 所有相邻 2 字片段」，去重（与后端 keywordFragments 一致） */
+  function keywordFragments(kw) {
+    var t = (kw || "").trim();
+    if (!t) return [];
+    var out = [t];
+    var chars = t.replace(/\s+/g, "").split("");
+    for (var i = 0; i + 1 < chars.length; i++) {
+      var f = chars[i] + chars[i + 1];
+      if (out.indexOf(f) === -1) out.push(f);
+    }
+    return out;
+  }
+
+  /** 同一部法条可能被多张卡引用 → 展示前按「条名 + 原文」去重，保留第一条 */
+  function dedupLaws(list) {
+    var seen = {};
+    return (list || []).filter(function (l) {
+      var k = (l.name || "") + "|" + (l.text || "");
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+  }
+
+  function byDateDesc(a, b) { return (b.published_at || "").localeCompare(a.published_at || ""); }
+
+  /** 本地三段式检索，返回 { cards, matchMode, matchedLaws } */
+  function localSearch(keyword, categoryId) {
+    var kw = (keyword || "").trim();
+    var catName = categoryId ? CATEGORY_NAME[categoryId] : null;
+    var pool = (window.LAW_CARDS || []).filter(function (c) {
+      return c.status === "published" && (!catName || c.category === catName);
+    });
+
+    if (!kw) return { cards: pool.slice().sort(byDateDesc), matchMode: "", matchedLaws: [] };
+
+    var low = kw.toLowerCase();
+    var mode = "exact";
+    var cards = pool.filter(function (c) { return cardHaystack(c).indexOf(low) !== -1; });
+
+    if (!cards.length) {
+      var frags = keywordFragments(kw);
+      var scored = [];
+      if (frags.length > 1) {
+        pool.forEach(function (c) {
+          var hay = cardHaystack(c);
+          var title = (c.title || "").toLowerCase();
+          var hits = 0, weight = 0, titleHits = 0;
+          frags.forEach(function (f) {
+            var lf = f.toLowerCase();
+            if (hay.indexOf(lf) === -1) return;
+            hits++;
+            weight += f.length;
+            if (title.indexOf(lf) !== -1) titleHits++;
+          });
+          if (hits > 0) scored.push({ c: c, hits: hits, weight: weight, titleHits: titleHits });
+        });
+      }
+      // 排序与后端 ORDER BY 对齐：标题命中数 > 命中片段总字数 > 命中片段数 > 发布时间
+      scored.sort(function (a, b) {
+        return (b.titleHits - a.titleHits) || (b.weight - a.weight) || (b.hits - a.hits) ||
+          (b.c.published_at || "").localeCompare(a.c.published_at || "") ||
+          (a.c.slug < b.c.slug ? -1 : 1);
+      });
+      cards = scored.map(function (x) { return x.c; });
+      mode = cards.length ? "fuzzy" : "none";
+    }
+
+    // matchedLaws：① 法条名称/原文直接命中 ② 命中卡片所关联的法条（保证「有卡就有法条可看」）
+    var hitSlugs = {};
+    var order = {};
+    cards.forEach(function (c, i) { hitSlugs[c.slug] = true; order[c.slug] = i; });
+    var own = [], fromCard = [];
+    pool.forEach(function (c) {
+      (c.laws || []).forEach(function (l) {
+        var rec = {
+          name: l.name, text: l.text, source_url: l.source_url,
+          cardSlug: c.slug, cardTitle: c.title
+        };
+        var selfHit = (l.name || "").toLowerCase().indexOf(low) !== -1 ||
+          (l.text || "").toLowerCase().indexOf(low) !== -1;
+        if (selfHit) own.push(rec);
+        else if (hitSlugs[c.slug]) fromCard.push(rec);
+      });
+    });
+    // 与后端 ORDER BY 对齐：卡片带出来的法条按「命中卡片的相关度顺序」排，
+    // 让最相关那张卡的法条紧跟其后（否则搜「房东不退押金」会先看到别的卡的劳动合同法）
+    function rankOf(slug) { var i = order[slug]; return i === undefined ? 9999 : i; }
+    fromCard.sort(function (a, b) { return rankOf(a.cardSlug) - rankOf(b.cardSlug); });
+
+    return {
+      cards: cards,
+      matchMode: mode,
+      matchedLaws: dedupLaws(own.concat(fromCard)).slice(0, MATCHED_LAWS_LIMIT)
+    };
+  }
+
   /** ---------- 公开 API ---------- */
 
   window.Store = {
@@ -247,26 +365,33 @@
     },
 
     /** Day 13：关键词搜索（可叠加分类筛选）
-     * Day 17：走 /api/cards?keyword=&category=（服务端 SQL 参数化，含法条全文检索），
-     *         失败回落本地静态搜索（匹配范围一致）。
+     * Day 17：走 /api/cards?keyword=&category=（服务端 SQL 参数化，含法条全文检索）
+     * Day 29：**返回值从「卡片数组」改为 { cards, matchMode, matchedLaws }**
+     *         ① matchMode 标注 exact / fuzzy / none，前端据此换文案与截断
+     *         ② matchedLaws 是命中的法条原文，支撑「直接查到法条」
+     *         ③ 失败回落本地三段式搜索（规则与后端对齐，见 localSearch）
+     * 无关键词时 matchMode 为空串、matchedLaws 为空数组，行为等同普通列表。
      */
     searchCards: function (keyword, categoryId) {
+      var kw = (keyword || "").trim();
       var qs = [];
-      if (keyword && keyword.trim()) qs.push("keyword=" + encodeURIComponent(keyword.trim()));
+      if (kw) qs.push("keyword=" + encodeURIComponent(kw));
       if (categoryId) qs.push("category=" + encodeURIComponent(categoryId));
-      return apiOrLocal("/cards" + (qs.length ? "?" + qs.join("&") : "") + (qs.length ? "&" : "?") + "limit=50", function () {
-        var kw = (keyword || "").trim().toLowerCase();
-        var catName = categoryId ? CATEGORY_NAME[categoryId] : null;
-        var cards = (window.LAW_CARDS || []).filter(function (c) {
-          if (c.status !== "published") return false;
-          if (catName && c.category !== catName) return false;
-          if (!kw) return true;
-          return cardHaystack(c).indexOf(kw) !== -1;
+      qs.push("limit=50");
+
+      return apiOrLocalFull("/cards?" + qs.join("&"), function () {
+        var r = localSearch(kw, categoryId);
+        return fakeFetch({
+          data: r.cards,
+          meta: { total: r.cards.length, matchMode: r.matchMode, matchedLaws: r.matchedLaws }
         });
-        cards.sort(function (a, b) {
-          return b.published_at.localeCompare(a.published_at);
-        });
-        return fakeFetch(cards);
+      }).then(function (env) {
+        var meta = (env && env.meta) || {};
+        return {
+          cards: (env && env.data) || [],
+          matchMode: meta.matchMode || "",
+          matchedLaws: dedupLaws(meta.matchedLaws || [])
+        };
       });
     },
 

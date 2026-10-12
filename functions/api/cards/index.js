@@ -4,6 +4,11 @@
  *   - SQL 全部下沉到 cardsRepository.js / lawsRepository.js
  *   - 数据库连接细节在 db.js
  *   - 响应形状 { ok, data, meta? } / { ok:false, error:{ code, message } } 与重构前逐字段一致
+ *
+ * Day 29 扩展：带 keyword 时 meta 多两个字段
+ *   - matchMode: 'exact' | 'fuzzy' | 'none' —— 精确/近似/无结果，前端据此换文案
+ *   - matchedLaws: 命中的法条原文（含所属卡片），支撑「直接查到法条」
+ * 无 keyword 时响应与之前完全一致（不新增字段），老调用方不受影响。
  */
 'use strict';
 
@@ -14,6 +19,10 @@ const lawsRepository = require('./lawsRepository');
 
 // 契约 §1.1 允许的 6 个分类 id
 const CATEGORY_IDS = ['labor', 'consume', 'loan', 'marriage', 'traffic', 'neighbor'];
+
+// 单次最多回带多少条命中法条（“相关法条”区），够列满一屏又不至于把响应撑大
+const MATCHED_LAWS_LIMIT = 12;
+
 
 function json(status, obj) {
   return {
@@ -43,9 +52,38 @@ async function listCards(q) {
     }
   }
 
-  // 查数据：一句 repository，入口不碰 SQL
-  const { rows, total } = await cardsRepository.listPublished({ category, keyword, limit });
-  return json(200, { ok: true, data: rows, meta: { total: total, limit: limit } });
+  // 无关键词：老路径，按发布时间倒序，行为与重构前一致
+  if (!keyword) {
+    const r = await cardsRepository.listPublished({ category, keyword: null, limit });
+    return json(200, { ok: true, data: r.rows, meta: { total: r.total, limit: limit } });
+  }
+
+  // 有关键词（Day 29 起）：三段式
+  //   ① 精确——整串命中，命中即停
+  //   ② 近似——整串颗粒无收时，用 2 字片段兜底召回，避免长句提问 0 结果
+  //   ③ 空——两条路都没结果，matchMode='none'，前端据此展示「为你推荐」
+  const exact = await cardsRepository.listPublished({ category, keyword, limit });
+  let cards = exact.rows;
+  let total = exact.total;
+  let matchMode = 'exact';
+
+  if (cards.length === 0) {
+    const approx = await cardsRepository.listApprox({ category, keyword, limit });
+    cards = approx.rows;
+    total = approx.total;
+    matchMode = cards.length > 0 ? 'fuzzy' : 'none';
+  }
+
+  // 命中的卡片要一起传给法条检索：搜「押金」时法条原文里没有「押金」二字，
+  // 靠「命中卡片关联的法条」才能让法条区有内容（详见 lawsRepository.searchByKeyword）
+  const matchedLaws = await lawsRepository.searchByKeyword(
+    keyword, cards.map(function (c) { return c.slug; }), MATCHED_LAWS_LIMIT);
+
+  return json(200, {
+    ok: true,
+    data: cards,
+    meta: { total: total, limit: limit, matchMode: matchMode, matchedLaws: matchedLaws }
+  });
 }
 
 // ---------- 详情：GET /api/cards/:slug ----------
