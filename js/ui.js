@@ -267,7 +267,7 @@
       (on ? '★' : '☆') + '</span>' + (on ? '已收藏' : '收藏');
   }
 
-  function onFavClick(btn) {
+  function onFavClick(btn, opts) {
     if (btn.disabled) return;
     var slug = btn.getAttribute("data-slug");
     var wasOn = btn.classList.contains("is-on");
@@ -279,6 +279,9 @@
       .then(function (nowOn) {
         setFavState(btn, nowOn);
         showToast(nowOn ? '已收藏！可在右上「我的收藏」查看' : '已取消收藏', false);
+        // Day 27：页面可通过 opts.onToggle 做后续处理（收藏页用它把取消的卡移出列表）
+        var cb = opts && opts.onToggle;
+        if (typeof cb === "function") cb(btn, nowOn);
       })
       .catch(function () {
         btn.innerHTML = prevHtml;
@@ -290,14 +293,35 @@
       });
   }
 
-  /** 把区域内的 .fav-btn 点击全部交给 onFavClick（事件委托，HTML 重渲染后自动重连）*/
-  function attachFavHandler(area) {
+  /** 把区域内的 .fav-btn 点击全部交给 onFavClick（事件委托，HTML 重渲染后自动重连）。
+   *  Day 27 修复两点：
+   *  ① 幂等 —— 重复调用不再叠加 click 监听（此前每渲染一次就 addEventListener 一次，
+   *     一旦页面重渲染，一次点击会触发两次 toggle，收藏状态瞬间被翻转回去）；
+   *  ② 支持传 opts（如 onToggle 回调），重复调用时只更新 opts、不重复绑定。 */
+  function attachFavHandler(area, opts) {
     if (!area) return;
+    area.__favOpts = opts || area.__favOpts || {};
+    if (area.__favBound) return;
+    area.__favBound = true;
     area.addEventListener("click", function (e) {
       var btn = e.target && e.target.closest ? e.target.closest(".fav-btn") : null;
-      if (btn && area.contains(btn)) onFavClick(btn);
+      if (btn && area.contains(btn)) onFavClick(btn, area.__favOpts || {});
     });
   }
+
+  /** Day 27 加练：把范围内所有 .fav-btn 的显示状态同步到 Store 当前值。
+   *  场景：在详情页取消收藏后按浏览器「后退」回列表页，页面从 bfcache 恢复，
+   *  DOM 还是离开时的旧状态 —— 需按 localStorage 刷新一遍按钮。 */
+  function syncFavButtons(root) {
+    var btns = (root || document).querySelectorAll(".fav-btn");
+    for (var i = 0; i < btns.length; i++) {
+      var slug = btns[i].getAttribute("data-slug");
+      if (slug) setFavState(btns[i], window.Store.isBookmarked(slug));
+    }
+  }
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) syncFavButtons(document);
+  });
 
   /** 暴露共用部分给所有页面 */
   window.UI = {
@@ -312,6 +336,7 @@
     setFavState: setFavState,
     onFavClick: onFavClick,
     attachFavHandler: attachFavHandler,
+    syncFavButtons: syncFavButtons,
     formatRelativeTime: formatRelativeTime
   };
 

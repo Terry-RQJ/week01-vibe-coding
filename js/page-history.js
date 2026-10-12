@@ -51,4 +51,10 @@
   }
 
   render();
+
+  /* Day 27 加练：从详情页「后退」回本页时，页面从 bfcache 原样恢复，
+   * 期间新产生的浏览记录不会体现 —— 本页内容完全由 localStorage 派生，直接整页重渲染。 */
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) render();
+  })
 })();

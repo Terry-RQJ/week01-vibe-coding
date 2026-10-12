@@ -371,6 +371,13 @@ a:hover { text-decoration: underline; }
 }
 .fav-star { font-size: 15px; line-height: 1; }
 
+/* Day 27 试用卡点 #2：页面提示与试用脚本都写「点卡片右下角的 ☆」，
+   但按钮原本紧跟在元信息后面，位置随文案长短漂移（手机上落在左下角）。
+   用 margin-left:auto 把它固定推到 meta 行的最右端 = 卡片右下角。 */
+.card .card-meta .fav-btn {
+  margin-left: auto;
+}
+
 /* 收藏反馈 toast（成功深绿 / 失败暖红）*/
 .fav-toast {
   position: fixed;

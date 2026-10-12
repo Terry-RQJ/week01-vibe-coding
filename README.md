@@ -51,9 +51,13 @@ python -m http.server 8000
 
 但一旦 Day 8 起加载卡片数据，浏览器会因为 CORS 安全策略拦截本地资源，**届时必须用方式 A**。
 
-### 部署到公网（Day 12–14 候选）
+### 部署到公网（现役：腾讯云 CloudBase 静态托管，Day 15 起）
 
-`git push` 到 `main` → 仓库 **Settings → Pages → Source: main, / (root)** → 等待 1–2 分钟 → 访问 `https://terry-rqj.github.io/week01-vibe-coding/`。详见 `TECH_DESIGN.md §11`。
+线上地址（Day 27 核验有效）：
+
+https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/
+
+部署、发布与回滚流程见 `DEPLOY.md`、`docs/release-checklist-v1.0.md`、`docs/rollback-playbook.md`。（早期的 GitHub Pages 方案已废弃——`https://terry-rqj.github.io/week01-vibe-coding/` 已 404，勿再使用。）
 
 ---
 
