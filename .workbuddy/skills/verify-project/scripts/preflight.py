@@ -234,9 +234,9 @@ def check_errors():
            % (len(user_fe), [os.path.basename(p) for p in user_fe],
               '0 命中（PASS）' if not hits8 else '!! 命中:\n' + '\n'.join('%s:%d %s' % h for h in hits8)))
 
-    # C9: 四函数都引用了 errors.js 统一映射（Day 23 母版 + 四副本约定）
+    # C9: 五函数都引用了 errors.js 统一映射（Day 23 母版 + 五副本约定；Day 30 增 laws）
     missing = []
-    for fn in ('cards', 'categories', 'favorites', 'health'):
+    for fn in ('cards', 'categories', 'favorites', 'health', 'laws'):
         p = os.path.join(ROOT, 'functions', 'api', fn, 'index.js')
         try:
             with open(p, encoding='utf-8') as f:
@@ -248,10 +248,10 @@ def check_errors():
                 missing.append(fn + '（缺 errors.js 副本）')
         except Exception as e:
             missing.append('%s（读取失败 %s）' % (fn, e))
-    record('C9', '四函数均引用 errors.js 统一错误映射（母版+副本约定）', len(missing) == 0,
+    record('C9', '五函数均引用 errors.js 统一错误映射（母版+副本约定）', len(missing) == 0,
            '逐函数检查 → %s' % ('全部合规（PASS）' if not missing else '!! ' + '; '.join(missing)))
 
-    # C10: errors.js 母版与四份副本「逻辑部分」必须一致
+    # C10: errors.js 母版与五份副本「逻辑部分」必须一致
     #      母版顶部多一段「本文件是母版…同步命令」的说明注释，属设计如此，
     #      比对前必须先剥掉母版开头连续的上方注释块，否则永远报漂移（第一次跑就误报了）。
     master = os.path.join(ROOT, 'functions', 'api', 'common', 'errors.js')
@@ -323,7 +323,8 @@ def check_static():
     # C14: 全站内部链接/资源引用必须相对路径（Day 7 坑 1，TECH_DESIGN §11.3）
     abs_pat = re.compile(r'''(href|src)\s*=\s*["']/''')
     abs_hits = []
-    for pg in ('index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html'):
+    for pg in ('index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html',
+               'laws.html'):
         p = os.path.join(ROOT, pg)
         if not os.path.exists(p):
             continue
@@ -337,7 +338,7 @@ def check_static():
                 if abs_pat.search(line):
                     abs_hits.append('dist/%s:%d %s' % (os.path.basename(pg), i, line.strip()[:80]))
     record('C14', '全站链接/资源均为相对路径（无 href="/" src="/"）', len(abs_hits) == 0,
-           '扫描 5 页面 + dist/*.html → %s' % ('0 命中（PASS）' if not abs_hits else '!! 命中:\n' + '\n'.join(abs_hits)))
+           '扫描 6 页面 + dist/*.html → %s' % ('0 命中（PASS）' if not abs_hits else '!! 命中:\n' + '\n'.join(abs_hits)))
 
     # C15: .nojekyll 必须存在且在库（Day 7 坑 2，GitHub Pages）
     exists = os.path.exists(os.path.join(ROOT, '.nojekyll'))
@@ -347,7 +348,8 @@ def check_static():
            '文件存在=%s ｜ git ls-files .nojekyll → %s' % (exists, tracked or '(空=未跟踪)'))
 
     # C16: 根目录与 dist/ 的页面文件必须一致（Day 20 坑 2：手工同步容易漏）
-    pages = ['index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html', '404.html']
+    pages = ['index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html',
+             'laws.html', '404.html']
     drift = []
     checked = []
     missing = []
@@ -373,7 +375,8 @@ def check_static():
 
     # C17: dist 里的 js/css 也要同步（页面本身一致但 js 落后同样会出问题）
     pairs = [('js/store.js', 'dist/js/store.js'), ('js/page-check.js', 'dist/js/page-check.js'),
-             ('js/ui.js', 'dist/js/ui.js'), ('css/global.css', 'dist/css/global.css')]
+             ('js/ui.js', 'dist/js/ui.js'), ('js/page-laws.js', 'dist/js/page-laws.js'),
+             ('css/global.css', 'dist/css/global.css')]
     drift2 = []
     checked2 = []
     for a, b in pairs:
@@ -431,6 +434,32 @@ def check_static():
                len(sql_files),
                '0 命中（PASS）' if not bad_sql else '!! ' + '; '.join(bad_sql),
                '' if sql_files else '  !! 一个 Repository 都没扫到（路径错误）= 漏报'))
+
+    # C28: 云函数读响应体必须「整体解码」——不得逐分片 toString（Day 30 实测事故）
+    #      原写法 `let d=''; res.on('data', c => d += c);` 会对每个 TCP 分片单独 UTF-8 解码，
+    #      多字节汉字被分片切开时每个字节各变成一个 U+FFFD。症状极隐蔽：
+    #      /api/laws?law=民法典 里「《民法典》第 1203 条」的「《」变 3 个替换符，
+    #      该条按法律名筛不出来；换一个响应长度（不带 law 筛选）就恢复正常，容易误判成数据坏。
+    frag_hits = []
+    db_files = globmod.glob(os.path.join(ROOT, 'functions', 'api', '*', 'db.js'))
+    for p in db_files:
+        try:
+            with open(p, encoding='utf-8', errors='replace') as f:
+                src = f.read()
+            # 先剥掉注释，避免把「记录这段坑」的说明判成命中
+            code = re.sub(r'//[^\n]*', '', src)
+            code = re.sub(r'/\*.*?\*/', '', code, flags=re.S)
+            name = os.path.basename(os.path.dirname(p)) + '/db.js'
+            if re.search(r'\+=\s*c\b', code) or 'Buffer.concat' not in code:
+                frag_hits.append(name + '（未整体解码）')
+        except Exception as e:
+            frag_hits.append('%s（读取失败 %s）' % (p, e))
+    ok28 = (len(frag_hits) == 0) and (len(db_files) > 0)
+    record('C28', '云函数响应整体解码（Buffer.concat 一次 toString，不逐分片）', ok28,
+           '扫描 %d 个 db.js → %s%s' % (
+               len(db_files),
+               '全部整体解码（PASS）' if not frag_hits else '!! ' + '; '.join(frag_hits),
+               '' if db_files else '  !! 一个 db.js 都没扫到（路径错误）= 漏报'))
 
 
 # ─────────────────────────────────────────────────────────────

@@ -42,9 +42,14 @@ function execPg(sql, parameters) {
       },
       timeout: 8000
     }, (res) => {
-      let d = '';
-      res.on('data', (c) => (d += c));
+      // 分片必须先收进 Buffer 数组、最后一次性解码（Day 30 修复）
+      // 原写法 `d += c` 会对**每个 TCP 分片**单独做 UTF-8 解码：多字节汉字一旦被分片切开，
+      // 每个字节各变成一个 U+FFFD。实测症状：`law=民法典` 时「《民法典》第 1203 条」的「《」
+      // 变成 3 个替换符 → 该条按法律名筛不出来（且只在特定响应长度下复现，极难排查）。
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
       res.on('end', () => {
+        const d = Buffer.concat(chunks).toString('utf8');
         let parsed;
         try { parsed = JSON.parse(d); } catch (e) { parsed = null; }
         if (res.statusCode >= 400 || (parsed && parsed.code)) {

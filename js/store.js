@@ -319,6 +319,72 @@
     };
   }
 
+  /** Day 30：法条速查页的本地回落——把静态数据里的法条汇总成池子再检索。
+   * 规则与 /api/laws 对齐：
+   * ① 按**法条名聚合**（同一条法条被多张卡引用时只出现一次，引用它的卡收进 cards 数组），
+   *    否则断网时会出现同一个条文块重复多遍；
+   * ② lawName 精确筛法律名；
+   * ③ keyword 的检索范围**含关联卡片的标题/摘要/情境/标签**——口语词（押金、退钱、扰民）
+   *    通常只写在卡里，法条原文用的是法言法语，只搜原文会 0 结果；
+   * ④ lawNames 始终返回**全量**清单（不受当前筛选影响，否则筛选后筛选器自己会缩水），
+   *    count 是去重后的法条数。
+   */
+  function localLaws(keyword, lawName) {
+    var kw = (keyword || "").trim().toLowerCase();
+    var byName = {};
+    var pool = [];
+    (window.LAW_CARDS || []).forEach(function (c) {
+      if (c.status !== "published") return;
+      (c.laws || []).forEach(function (l) {
+        var row = byName[l.name];
+        if (!row) {
+          var m = /^《([^》]+)》/.exec(l.name || "");
+          row = byName[l.name] = {
+            name: l.name, text: l.text, source_url: l.source_url,
+            lawName: m ? m[1] : "", cards: [], _seen: {}, _hay: ""
+          };
+          pool.push(row);
+        }
+        if (!row._seen[c.slug]) {
+          row._seen[c.slug] = true;
+          row.cards.push({
+            slug: c.slug, title: c.title,
+            category: c.category, categoryId: c.category_id
+          });
+          row._hay += " " + [c.title, c.summary, c.scenario,
+            (c.tags || []).join(" ")].join(" ");
+        }
+      });
+    });
+
+    var cnt = {};
+    pool.forEach(function (r) { cnt[r.lawName] = (cnt[r.lawName] || 0) + 1; });
+    var names = Object.keys(cnt).map(function (k) { return { name: k, count: cnt[k] }; });
+    names.sort(function (a, b) { return b.count - a.count || (a.name < b.name ? -1 : 1); });
+
+    var out = pool.filter(function (r) {
+      if (lawName && r.lawName !== lawName) return false;
+      if (kw) {
+        var hay = ((r.name || "") + " " + (r.text || "") + r._hay).toLowerCase();
+        if (hay.indexOf(kw) === -1) return false;
+      }
+      return true;
+    });
+    // 排序与接口一致：法律名 → 条号数字升序 → 名称兜底
+    function lawNo(s) {
+      var m = /[0-9]+/.exec(s || "");
+      return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+    }
+    out.sort(function (a, b) {
+      if (a.lawName !== b.lawName) return a.lawName < b.lawName ? -1 : 1;
+      var na = lawNo(a.name), nb = lawNo(b.name);
+      if (na !== nb) return na - nb;
+      return a.name < b.name ? -1 : 1;
+    });
+    out = out.map(function (r) { delete r._seen; delete r._hay; return r; });
+    return { data: out, meta: { total: out.length, limit: 500, lawNames: names } };
+  }
+
   /** ---------- 公开 API ---------- */
 
   window.Store = {
@@ -392,6 +458,21 @@
           matchMode: meta.matchMode || "",
           matchedLaws: dedupLaws(meta.matchedLaws || [])
         };
+      });
+    },
+
+    /** Day 30：法条速查页的数据源（GET /api/laws）
+     * 返回完整信封 { ok, data:[法条], meta:{ total, limit, lawNames:[{name,count}] } }。
+     * 失败时回落到本地聚合（从 window.LAW_CARDS 抽全部法条），断网也能查。
+     */
+    listLaws: function (keyword, lawName) {
+      var kw = (keyword || "").trim();
+      var qs = [];
+      if (kw) qs.push("keyword=" + encodeURIComponent(kw));
+      if (lawName) qs.push("law=" + encodeURIComponent(lawName));
+      qs.push("limit=500");
+      return apiOrLocalFull("/laws?" + qs.join("&"), function () {
+        return fakeFetch(localLaws(kw, lawName));
       });
     },
 

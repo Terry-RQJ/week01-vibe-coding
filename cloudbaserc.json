@@ -29,6 +29,19 @@
       "envVariables": {}
     },
     {
+      "name": "apiLaws",
+      "dir": "./functions/api/laws",
+      "type": "HTTP",
+      "runtime": "Nodejs16.13",
+      "handler": "index.main",
+      "timeout": 10,
+      "memorySize": 128,
+      "installDependency": true,
+      "public": true,
+      "gatewayPath": "/api/laws",
+      "envVariables": {}
+    },
+    {
       "name": "apiCategories",
       "dir": "./functions/api/categories",
       "type": "HTTP",

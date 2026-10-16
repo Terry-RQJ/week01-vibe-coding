@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="法律小科普轻站：法条速查。按法律名或条文关键词直接查法条原文，每条都附官方出处。">
+  <meta name="theme-color" content="#1B3524">
+  <title>法条速查 · 法律小科普轻站</title>
+  <link rel="stylesheet" href="./css/tokens.css">
+  <link rel="stylesheet" href="./css/global.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="./index.html" class="brand" aria-label="法律小科普轻站 回到首页">🎋 法律小科普轻站</a>
+      <a href="./index.html" class="nav-link" aria-label="首页">首页</a>
+      <a href="./laws.html" class="nav-link" aria-label="法条速查" aria-current="page">法条速查</a>
+      <a href="./bookmarks.html" class="nav-link" aria-label="我的收藏">我的收藏</a>
+      <a href="./history.html" class="nav-link" aria-label="浏览记录">浏览记录</a>
+    </div>
+  </header>
+
+  <main style="position: relative; z-index: 1;">
+    <div class="container">
+      <nav class="breadcrumbs" aria-label="面包屑导航">
+        <a href="./index.html">首页</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">法条速查</span>
+      </nav>
+
+      <section aria-labelledby="laws-h" style="padding-top: var(--space-3);">
+        <h1 id="laws-h" class="section-title">法条速查</h1>
+        <p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">
+          直接查条文原文，每条都附官方出处链接，可自行核对。想按「我遇到了什么事」找答案，请回<a href="./index.html">首页搜情形</a>。
+        </p>
+
+        <div class="search-box" role="search">
+          <input type="search" id="law-search" placeholder="搜条文关键词，如『押金』『竞业限制』『三倍赔偿』…" aria-label="搜索法条原文（支持关键词和法律名）" autocomplete="off" enterkeyhint="search">
+        </div>
+
+        <!-- 法律名筛选（由 js/page-laws.js 依据接口返回的 lawNames 动态生成） -->
+        <div class="law-filter-block">
+          <p class="law-filter-label">按法律筛选</p>
+          <div class="law-chip-list" id="law-chips" role="group" aria-label="按法律筛选法条"></div>
+        </div>
+
+        <div id="law-area" style="display: grid; grid-template-columns: 1fr; gap: var(--space-3); margin-top: var(--space-4);">
+          <!-- 法条列表由 js/page-laws.js 渲染 -->
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div><strong>免责声明 ·</strong> 本站内容由 <strong>AI 起草 + 人工核对法条</strong>，法条原文逐条比对官方来源，仅供学习参考，<strong>不构成具体法律咨询</strong>。您的具体问题请咨询执业律师，或拨打免费法律服务热线 <strong>12348</strong>。</div>
+      <div><strong>紧急情况 ·</strong> 人身安全事件请立即拨打 <strong>110</strong>。</div>
+      <div class="meta">本站为个人学习项目 · Day 30 法条速查 · 2026-10-16</div>
+    </div>
+  </footer>
+
+  <noscript>
+    <div style="padding: 16px; background: var(--color-warn-bg); color: var(--color-warn-fg); text-align: center;">本站依赖 JavaScript 才能正常使用法条速查功能。</div>
+  </noscript>
+
+  <script src="./data/cards.js"></script>
+  <script src="./js/store.js"></script>
+  <script src="./js/ui.js"></script>
+  <script src="./js/page-laws.js"></script>
+</body>
+</html>

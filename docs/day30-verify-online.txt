@@ -1,0 +1,216 @@
+Day 30 线上验证原始输出（2026-10-16）
+生成方式与结论解读见 docs/day30-verify-online.md；本文件为命令逐字输出，未做修饰。
+
+==============================================================================
+【1】离线发布前检查  preflight.py            → 期望 21/21
+==============================================================================
+========================================================================
+verify-project 发布前检查 ｜ 法律小科普轻站
+项目根: C:\Users\Administrator\Desktop\Vibe Coding
+========================================================================
+
+── 一、密钥与敏感信息 ──
+[PASS] C1   .env 未被 git 跟踪（PRD §8.5 硬验收）
+         git ls-files .env → 无输出（PASS）
+[PASS] C2   无密钥类文件被跟踪（*.key/*.pem/credentials.json）
+         git ls-files | grep 密钥后缀 → 无输出（PASS）
+[PASS] C3   .env 被 .gitignore 命中 且 .env.example 被放行并入库
+         .env → .gitignore:3:.env	.env（期望：被忽略）
+         .env.example → (未命中=错误)（期望：未被忽略）
+         git ls-files .env.example → ['.env.example']（期望：有输出）
+[PASS] C4   代码文件中无硬编码密钥特征词（eyJ/sk-/AKID/ghp_）
+         git grep 密钥特征词（排除 .md）→ 0 命中（PASS）
+[PASS] C5   cloudbaserc.json 四函数 envVariables 全为空（密钥已还原）
+         检查 5 个函数 → 全部为空（PASS）
+[PASS] C6   无 .tmp-* 临时文件被跟踪
+         git ls-files | 匹配 .tmp → 无（PASS）
+
+── 二、错误提示与异常兜底 ──
+[PASS] C7   后端无裸报错直出（e.message 不得进响应体；进日志不算）
+         扫描 20 个后端文件（排除注释与日志行）→ 0 命中（PASS）
+[PASS] C8   面向用户的页面/模块无裸报错（检查台作为诊断工具除外）
+         扫描 4 个面向用户模块: ['store.js', 'page-card.js', 'page-bookmarks.js', 'page-history.js'] → 0 命中（PASS）
+         检查台（诊断工具，允许显示状态码/响应体）属于例外，不参与判定
+[PASS] C9   五函数均引用 errors.js 统一错误映射（母版+副本约定）
+         逐函数检查 → 全部合规（PASS）
+[PASS] C10  errors.js 四副本内容一致，且与母版（剥离说明注释后）一致
+         四副本彼此一致=True；与母版（剥离说明注释后）一致=True（PASS）
+[PASS] C11  favorites parseBody 拒非对象 body（Day 24 Bug 1 回归防线）
+         检查 index.js 是否含 typeof/Array.isArray 守卫 → 存在（PASS）
+[PASS] C12  favorites parseId 用白名单正则（Day 24 Bug 2 回归防线）
+         检查是否含 /^[1-9][0-9]{0,15}$/ → 存在（PASS）
+[PASS] C13  favorites note 长度按码点计（Day 24 Bug 3 回归防线）
+         检查是否含 Array.from(...).length → 存在（PASS）
+
+── 三、前端与部署静态一致性 ──
+[PASS] C14  全站链接/资源均为相对路径（无 href="/" src="/"）
+         扫描 6 页面 + dist/*.html → 0 命中（PASS）
+[PASS] C15  .nojekyll 存在且已被 git 跟踪（GitHub Pages 必需）
+         文件存在=True ｜ git ls-files .nojekyll → ['.nojekyll']
+[PASS] C16  根目录与 dist/ 页面文件内容一致（防止手工同步漏拷）
+         逐文件比对 6 个: ['index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html', 'laws.html'] → 全部一致（PASS）
+[PASS] C17  根目录与 dist/ 的 js/css 内容一致
+         比对 5 项: ['js/store.js', 'js/page-check.js', 'js/ui.js', 'js/page-laws.js', 'css/global.css'] → 全部一致（PASS）
+[PASS] C18  云函数未自设 CORS 头（否则网关拼成双值致 Failed to fetch）
+         扫描 26 个云函数文件 → 0 命中（PASS）
+[PASS] C19  云函数运行时均为 Nodejs16.13（20.19 有服务端 bug）
+         检查 5 函数 → 全部 16.13（PASS）
+[PASS] C20  SQL 全参数化（$1/$2 占位，语句内无 ${} 插值）
+         扫描 6 个 Repository → 0 命中（PASS）
+[PASS] C28  云函数响应整体解码（Buffer.concat 一次 toString，不逐分片）
+         扫描 4 个 db.js → 全部整体解码（PASS）
+
+========================================================================
+汇总: 21 / 21 通过
+========================================================================
+
+==============================================================================
+【2】公网发布前检查  preflight.py --online   → 期望 28/28
+==============================================================================
+========================================================================
+verify-project 发布前检查 ｜ 法律小科普轻站
+项目根: C:\Users\Administrator\Desktop\Vibe Coding
+========================================================================
+
+── 一、密钥与敏感信息 ──
+[PASS] C1   .env 未被 git 跟踪（PRD §8.5 硬验收）
+         git ls-files .env → 无输出（PASS）
+[PASS] C2   无密钥类文件被跟踪（*.key/*.pem/credentials.json）
+         git ls-files | grep 密钥后缀 → 无输出（PASS）
+[PASS] C3   .env 被 .gitignore 命中 且 .env.example 被放行并入库
+         .env → .gitignore:3:.env	.env（期望：被忽略）
+         .env.example → (未命中=错误)（期望：未被忽略）
+         git ls-files .env.example → ['.env.example']（期望：有输出）
+[PASS] C4   代码文件中无硬编码密钥特征词（eyJ/sk-/AKID/ghp_）
+         git grep 密钥特征词（排除 .md）→ 0 命中（PASS）
+[PASS] C5   cloudbaserc.json 四函数 envVariables 全为空（密钥已还原）
+         检查 5 个函数 → 全部为空（PASS）
+[PASS] C6   无 .tmp-* 临时文件被跟踪
+         git ls-files | 匹配 .tmp → 无（PASS）
+
+── 二、错误提示与异常兜底 ──
+[PASS] C7   后端无裸报错直出（e.message 不得进响应体；进日志不算）
+         扫描 20 个后端文件（排除注释与日志行）→ 0 命中（PASS）
+[PASS] C8   面向用户的页面/模块无裸报错（检查台作为诊断工具除外）
+         扫描 4 个面向用户模块: ['store.js', 'page-card.js', 'page-bookmarks.js', 'page-history.js'] → 0 命中（PASS）
+         检查台（诊断工具，允许显示状态码/响应体）属于例外，不参与判定
+[PASS] C9   五函数均引用 errors.js 统一错误映射（母版+副本约定）
+         逐函数检查 → 全部合规（PASS）
+[PASS] C10  errors.js 四副本内容一致，且与母版（剥离说明注释后）一致
+         四副本彼此一致=True；与母版（剥离说明注释后）一致=True（PASS）
+[PASS] C11  favorites parseBody 拒非对象 body（Day 24 Bug 1 回归防线）
+         检查 index.js 是否含 typeof/Array.isArray 守卫 → 存在（PASS）
+[PASS] C12  favorites parseId 用白名单正则（Day 24 Bug 2 回归防线）
+         检查是否含 /^[1-9][0-9]{0,15}$/ → 存在（PASS）
+[PASS] C13  favorites note 长度按码点计（Day 24 Bug 3 回归防线）
+         检查是否含 Array.from(...).length → 存在（PASS）
+
+── 三、前端与部署静态一致性 ──
+[PASS] C14  全站链接/资源均为相对路径（无 href="/" src="/"）
+         扫描 6 页面 + dist/*.html → 0 命中（PASS）
+[PASS] C15  .nojekyll 存在且已被 git 跟踪（GitHub Pages 必需）
+         文件存在=True ｜ git ls-files .nojekyll → ['.nojekyll']
+[PASS] C16  根目录与 dist/ 页面文件内容一致（防止手工同步漏拷）
+         逐文件比对 6 个: ['index.html', 'card.html', 'bookmarks.html', 'history.html', 'check.html', 'laws.html'] → 全部一致（PASS）
+[PASS] C17  根目录与 dist/ 的 js/css 内容一致
+         比对 5 项: ['js/store.js', 'js/page-check.js', 'js/ui.js', 'js/page-laws.js', 'css/global.css'] → 全部一致（PASS）
+[PASS] C18  云函数未自设 CORS 头（否则网关拼成双值致 Failed to fetch）
+         扫描 26 个云函数文件 → 0 命中（PASS）
+[PASS] C19  云函数运行时均为 Nodejs16.13（20.19 有服务端 bug）
+         检查 5 函数 → 全部 16.13（PASS）
+[PASS] C20  SQL 全参数化（$1/$2 占位，语句内无 ${} 插值）
+         扫描 6 个 Repository → 0 命中（PASS）
+[PASS] C28  云函数响应整体解码（Buffer.concat 一次 toString，不逐分片）
+         扫描 4 个 db.js → 全部整体解码（PASS）
+
+── 四、公网检查（base=https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com）──
+[PASS] C21  GET /api/health 返回 200 + ok:true
+         HTTP 200
+         {"ok":true,"service":"law-mini-site","version":"v1","time":"2026-10-16T10:06:33.310Z"}
+[PASS] C22  GET /api/cards 返回 200 + ok:true（读接口可用）
+         HTTP 200 ｜ 前 120 字符: {"ok":true,"data":[{"category":"消费类","categoryId":"consume","last_verified_at":"2026-10-16","published_at":"2026-10-16",
+[PASS] C23  陌生域名请求不回任何 CORS 头（无 * 通配，Day 20 结论）
+         curl 直连 Origin: https://evil.example.com → HTTP 200 ｜ access-control-allow-origin: (无，正确)
+[PASS] C24  白名单域名（同环境静态托管）被精确回显且为单值
+         curl 直连 Origin: https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com → HTTP 200 ｜ 回显: 'https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com'（期望恰好等于该域名、无逗号）
+[PASS] C25  PATCH body=null 返回 400（Day 24 Bug 1 线上回归，修复前 500）
+         HTTP 400（期望 400）
+         {"ok":false,"error":{"code":"INVALID_BODY","kind":"input","message":"请求体应该是一个 JSON 对象，例如 {\"note\":\"...\"}"}}
+[PASS] C26  PATCH 变形 id 写法被正确拦截（1e2/0x10/1.5/-1/0/01/%2B1→400；裸+1 是URL空格语义→404）
+         逐个测 → 全部符合预期（PASS）
+[PASS] C27  响应 message 无英文错误原文泄露（Day 23 审计结论）
+         探测 3 个接口 → 0 泄露（PASS）
+
+========================================================================
+汇总: 28 / 28 通过
+========================================================================
+
+==============================================================================
+【3】公网浏览器 e2e  docs/day30-laws-e2e.js  → 期望 19/19
+==============================================================================
+【1】首页导航有「法条速查」入口
+   ⛨ 中间页按钮：“确定访问 (3s)” → 真实点击
+   ⛨ 中间页按钮：“确定访问 (2s)” → 真实点击
+   ⛨ 中间页按钮：“确定访问 (1s)” → 真实点击
+   ⛨ 中间页按钮：“确定访问” → 真实点击
+   ✅ 首页 已过中间页
+   [PASS] 首页导航含法条速查链接
+
+【2】进入法条速查页，首屏渲染
+   ✅ 法条速查页 已过中间页
+   [PASS] 渲染出法条条目 ｜ 条数=158
+   [PASS] 渲染出法律名筛选 chip ｜ chip 数=17
+   [PASS] 有统计行 ｜ 「共收录 158 条法条原文」
+   [PASS] 首条含法条名 ｜ 《劳动争议调解仲裁法》第 5 条
+   [PASS] 含官方原文链接
+   [PASS] 含「出自情形」链接
+   [PASS] 默认选中「全部」 ｜ 全部158
+   📸 day30-laws-01-list.png
+
+【3】搜条文关键词（法言法语）
+   [PASS] 「竞业限制」有结果 ｜ 条数=2 首条=《劳动合同法》第 23 条
+   [PASS] 命中的关键词有高亮 ｜ 高亮 7 处
+   📸 day30-laws-02-keyword.png
+
+【4】搜口语词（法条原文里没有的词，靠关联卡片命中）
+   [PASS] 「押金」有结果（原文里没有这个词） ｜ 条数=4
+   [PASS] 结果带出了相关卡片 ｜ 首张卡=定金和订金，一字之差钱差一半
+   📸 day30-laws-03-colloquial.png
+
+【5】按法律名筛选
+   [PASS] 筛选器里有「民法典」 ｜ chip 序号=1
+   [PASS] 筛选后只剩该法律条文 ｜ 共 85 条，非民法典 0 条
+   [PASS] 对应 chip 高亮 ｜ active=民法典
+   [PASS] URL 同步筛选参数 ｜ ?law=%E6%B0%91%E6%B3%95%E5%85%B8
+   📸 day30-laws-04-filter.png
+
+【6】深链 laws.html?law=民法典 直接进入已筛状态
+   ✅ 深链页 已过中间页
+   [PASS] 深链进入即按民法典筛选 ｜ 条数=85 active=民法典
+
+【7】「出自情形」跳回详情页
+   👆 点了 第一条法条的「出自情形」（“赌债、赌球输的钱，法律管不管？”）
+   [PASS] 跳到卡片详情且含「相关法条」 ｜ /card.html?slug=duzhai-wuxiao
+   📸 day30-laws-05-to-card.png
+
+【8】断网回落（API 不可达时用静态法条池）
+   ✅ 断网页 已过中间页
+   [PASS] 断网也能渲染法条列表 ｜ 条数=158 chips=17
+   📸 day30-laws-06-offline.png
+
+================================
+结果：19 通过 / 0 失败
+================================
+
+==============================================================================
+【4】搜索覆盖度体检  142 个真实搜索词          → 期望 0 个无结果
+==============================================================================
+  精确     民间借贷               卡片7   法条12   借 1 万到手 8 千，砍头息能不认吗？、利滚利合法吗？利息算进本金再生息、借条丢了，微信聊
+
+======================================================================
+总词数 142   OK 142   无结果 0   有卡无法条 0
+
+★ 彻底搜不出来（用户会认为功能坏了）:
+
+▲ 能搜到情形、但法条区是空的:
+（每个词的逐条命中明细见 day30-content-expansion.md §1 的汇总表）

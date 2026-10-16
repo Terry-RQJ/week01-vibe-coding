@@ -168,7 +168,68 @@
 
 > 实现：6 个分类是固定常量，`LEFT JOIN (SELECT category_id, count(*) ... GROUP BY)` 保证 count=0 的分类也在列、顺序稳定。
 
-### 1.4 `GET /api/health`
+### 1.4 `GET /api/laws` ✅ 已实现（Day 30）
+
+**用途**：「法条速查」页（`laws.html`）的数据源。与 §1.1 的区别是**以法条为主体**——
+§1.1 从「我遇到了什么事」出发搜卡片，命中后捎带返回法条；本接口反过来：
+直接按法律名浏览、按关键词查条文，每条法条再回指它出现在哪些情形里。
+
+**请求参数**（全部可选）：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `keyword` | string | 关键词。检索范围＝法条 `name`/`text` **＋关联卡片的 `title`/`summary`/`scenario`/`tags`** |
+| `law` | string | 法律名筛选，如 `民法典`（匹配 `name` 形如「《民法典》第 714 条」） |
+| `category` | string | 分类 id（`labor`/`consume`/`loan`/`marriage`/`traffic`/`neighbor`） |
+| `limit` | int | 条数上限，1–500，默认 200 |
+
+> **为什么 keyword 要搜卡片字段**：普通人搜的是口语词（押金、退钱、扰民），而这些词通常只写在卡片里；
+> 法条原文用的是「租赁合同」「定金」「噪声」这类法言法语。只搜条文原文时「押金」会 0 结果——
+> 对用户就是「搜不出来」。扩到卡片字段后，关键词先命中卡片、再顺着卡片把法条带出来。
+
+**响应 200**（`data` 已按法条聚合：同一条法条只出现一次）：
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "name": "《民法典》第 714 条",
+      "text": "承租人无正当理由未支付或者迟延支付租金的，出租人可以请求承租人在合理期限内支付……",
+      "source_url": "https://www.12371.cn/2020/06/01/ARTI1591021670041266.shtml",
+      "lawName": "民法典",
+      "cards": [
+        { "slug": "fangdong-bu-tui-yajin", "title": "房东不退押金，一招制胜",
+          "category": "婚姻家庭类", "categoryId": "marriage" }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 4,
+    "limit": 200,
+    "lawNames": [ { "name": "民法典", "count": 33 } ]
+  }
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `lawName` | 从 `name` 剥出的法律名（`《民法典》第 714 条` → `民法典`），前端按它分组/筛选 |
+| `cards[]` | 引用该法条的情形卡片，前端渲染成「出自情形 A、B、C」并可点击回详情页 |
+| `meta.lawNames[]` | **全量**法律名清单 + 各自**去重后**的法条数（`count(DISTINCT name)`）。不受当前筛选影响，否则筛选后筛选器自己会缩水 |
+| `meta.total` | 当前筛选条件下的法条条数（聚合后） |
+
+**排序**：法律名 → 条号数字升序 → 名称兜底。条号升序靠 `substring(name from '[0-9]+')::int`，
+所以浏览《民法典》时是第 10 条 → 第 100 条 → 第 1179 条的自然顺序，而不是字符串顺序。
+
+**错误**：`category` 不在白名单 → 400 `INVALID_PARAM`；`limit` 非 1–500 整数 → 400 `INVALID_PARAM`；
+非 GET → 405 `METHOD_NOT_ALLOWED`。错误体格式同 §0。
+
+> 前端回落：断网/接口异常时 `Store.listLaws()` 落到 `localLaws()`——
+> 从 `window.LAW_CARDS` 聚合出同样的结构（同样按法条去重、同样把卡片字段纳入关键词范围），
+> 所以法条速查页在离线状态下依然可用。
+
+### 1.5 `GET /api/health`
 
 **用途**：部署冒烟测试（Day 15 第一目标）。
 
@@ -387,14 +448,15 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 
 （`laws`：`id` / `card_slug`(FK) / `name` / `text` / `source_url` / `sort_order`，对应 §1.2 响应的 `laws[]` 数组元素。）
 
-### 6.3 种子数据与验证（Day 16 实测；Day 29 扩充）
+### 6.3 种子数据与验证（Day 16 实测；Day 29 / Day 30 扩充）
 
-- 种子（Day 29 起）：`db/seed-content.py` 的 **24 张卡 → `cards` 24 行；45 条法条 → `laws` 45 行**（每类 4 张）。
+- 种子（Day 30 起）：`db/seed-content.py` 的 **121 张卡 → `cards` 121 行；259 条法条引用 → `laws` 259 行**（按法条名去重后为 **158 条**独立法条）。六类分布：劳动 20 / 消费 20 / 借贷 20 / 婚姻家庭 20 / 邻里名誉 21 / 交通 20。
   该脚本是内容的**唯一源**，一次生成 `db/seed.sql`（入库用）与 `data/cards.js`（离线回落用），
-  `python db/seed-content.py --check` 可校验两份产物是否与源一致。
+  `python db/seed-content.py` 会先自检（分类合法、slug 唯一、字数、法条数、tags ≥4、related 存在）再写盘。
+- 种子（Day 29）：24 张卡 / 45 条法条（每类 4 张）。
 - 种子（Day 16 原始）：6 张卡 + 11 条法条。
 - `seed.sql` 用 `TRUNCATE ... RESTART IDENTITY CASCADE` 先清再插，重复执行不报错、结果一致（已连跑 2 遍验证）
-- select 验证（云端真实执行）：每表 ≥5 行 ✅、`JOIN` 关联每卡法条数（1–3 条/卡）✅、`GROUP BY category_id` 聚合 = §1.3 的 count ✅（Day 29 复验：6 个分类各 4 张 ✅）、外键与 CHECK 约束拦截非法插入 ✅
+- select 验证（云端真实执行）：`cards` 121 / `laws` 259 ✅、`JOIN` 关联每卡法条数（1–4 条/卡）✅、`GROUP BY category_id` 聚合 = §1.3 的 count ✅（Day 30 复验：六类 20·20·20·20·21·20 ✅）、外键与 CHECK 约束拦截非法插入 ✅
 
 ---
 
@@ -417,3 +479,5 @@ Day 22 起是 ④ 板块列表与「改 / 删按 id 操作」的 id 来源。**�
 - 2026-10-09 · Day 23：**安全审计 + 三类错误提示统一**。新增 `kind` 字段（input/network/server，§0 已更新）；四个函数 catch 统一接 `errors.js toErrorResponse`——修掉 cards/categories 入口 `e.message` 直出（数据库英文原文曾会透传给用户）、db.js 网关报错透传、`DB_NOT_CONFIGURED` 暴露环境变量名三处裸报错；health 补 `ok:false` + try/catch。密钥排查：全历史 43 提交逐个扫描 0 真实密钥（文档里的 `git grep eyJ` 检查命令字样已逐条人工甄别）；`.gitignore` 加固（`.env.*` 通配 + `!.env.example` + credentials 类文件）；新增 `.env.example` 模板。安全自查清单见 `docs/security-checklist.md`（每项含验证方法）；前端 store.js / page-check.js 同步接入三类中文文案。
 - 2026-10-09 · Day 24：**修复真实 Bug：刁钻输入把 favorites 打挂**。三处修复（均在 `functions/api/favorites/index.js`）：① body 为 `null`/数组/数字等**非对象**时曾 500（`Cannot convert undefined or null to object`），现 400 中文提示；② `id` 校验曾被 `Number()` 静默放行 `1e2`/`+1`/`0x10`/`1.5`，现白名单正则拦截；③ `note` 长度改按**码点**计（与数据库 VARCHAR(200) 对齐），200 个 emoji 不再被误拒。前端 `edit-note` maxlength 200→400 码元（emoji 算 2），最终判断权交后端。回归：本地 `docs/day24-regression.js` 29/29、线上 25/25；四步证据（复现/定位/修复/验证）见 `docs/day24-bugfix-log.md`。§2B.2/§2B.3 校验描述已同步。
 - 2026-10-12 · Day 29：**§1.1 搜索升级为三段式 + 新增命中法条回带**（路径、参数、`data` 形状、无 keyword 时的响应**零改动**，只新增 `meta` 字段）。内容库 6 → **24 张卡 / 45 条法条**（每类 4 张），由 `db/seed-content.py` 作为**唯一内容源**一次生成 `db/seed.sql` 与 `data/cards.js`，从机制上消除「线上有、断网没有」的两份副本走偏。`meta.matchedLaws`（≤12 条）支撑「直接查到法条」，取数含「法条自身命中」+「命中卡片关联的法条」两条来源；`meta.matchMode` 标注 `exact` / `fuzzy` / `none`。另修 `db/exec.py` 两处环境适配：改用 node 直跑 CLI 入口绕开 cmd.exe 的 8191 字符上限（24 张卡的 INSERT 压平 10960 字符，原先被截断且报错被解码器吞掉）、CLI 输出解码先 UTF-8 后 GBK。行为矩阵与法条核验清单见 `docs/day29-content-and-search.md`。
+- 2026-10-16 · Day 30：**新增 §1.4 `GET /api/laws`**——「法条速查」页（`laws.html`）后端起独立入口，以法条为主体检索；`data` 按法条聚合（`GROUP BY l.name`）+ `cards[]` 回指情形，`keyword` 检索范围扩到**关联卡片的标题/摘要/情境/标签**（否则「押金」这类口语词在条文原文里搜不到）。内容库 24 → **56 张卡 / 119 条法条**（劳动 20、消费 20，其余四类各 4）；`db/seed-content.py` 支持分批 INSERT（`BATCH_CARDS=8`/`BATCH_LAWS=14`）绕开命令行长度上限，并给老卡补「口语别名」标签。**修复一个潜伏的真实 Bug**：四个云函数 `db.js` 原用 `d += c` 逐 TCP 分片做 UTF-8 解码，多字节汉字被分片切开时每个字节各变一个 U+FFFD——症状是 `/api/laws?law=民法典` 里「《民法典》第 1203 条」的「《」变 3 个替换符、该条按法律名筛不出来，换个响应长度（不带筛选）又正常，极易误判成数据损坏。改用 `Buffer.concat(chunks).toString('utf8')` 整体解码，四个函数全部重新部署；发布前检查新增 C28 防回归。验证：DB verify ALL PASS、离线 preflight 21/21、公网 e2e 19/19。
+- 2026-10-16 · Day 30（内容扩容）：**内容库 56 → 121 张卡 / 259 条法条引用（按法条名去重后 158 条独立法条）**，六类分布 劳动 20 / 消费 20 / 借贷 20 / 婚姻家庭 20 / 邻里名誉 21 / 交通 20。扩容直接针对「搜的时候很多东西根本搜不出来」：用 142 个真实搜索词打线上 `/api/cards` 做覆盖度体检，**无结果数由 42（29.6%）降到 0**（探针脚本 `docs/day30-coverage-probe.py` 已留作回归资产，结果见 `docs/day30-verify-online.md`）。新增卡片一律以**官方全文**为准逐条核验条号与文字（人大网 / 中国政府网 / 最高法 / 12371.cn），并顺带修正 3 处历史错误：装修噪声应为《噪声污染防治法》**第 66 条**（原误标 58 条）、道交法第 76 条换成 **2021 修正版**全文、民间借贷司法解释出处由失效的 `gongbao.court.gov.cn` 页改为最高法国际商事法庭页。**接口契约零改动**（`/api/cards`、`/api/laws` 的路径、参数、响应形状均不变），仅内容行数变化。另修 `docs/day30-laws-e2e.js` 的健壮性缺陷：CDP 调用缺少超时，页面涨到 158 条法条后整页截图失败会让 promise 永不 resolve、进程**静默以退出码 0 结束**（表现为「跑一半没报错就停了」），现改为每次调用带超时 + 只截视口 + 截图失败降级跳过。验证：DB verify ALL PASS（cards 121 / laws 259）、离线 preflight 21/21、公网 preflight 28/28、公网 e2e 19/19。
