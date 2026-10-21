@@ -206,14 +206,21 @@
     });
   }
 
-  /** 把一张卡拼成可搜索的文本（小写；标题/摘要/情景/标签/步骤/法条解析全参与） */
-  function cardHaystack(c) {
+  /** 把一张卡拼成可搜索的文本（小写；标题/摘要/情景/标签/步骤/法条解析全参与）
+   *  @param {boolean} [excludeLaws] Day 31 加：为真时剔除关联法条的条名与原文。
+   *    「近似检索的召回门槛」用它——法条是通用法律文本，不能代表这张卡的主题；
+   *    而「精确检索」仍用完整文本，保证照着法条原文搜索不受影响。 */
+  function cardHaystack(c, excludeLaws) {
     var parts = [
       c.title, c.summary, c.scenario, c.category,
       (c.tags || []).join(" "),
-      (c.solution_steps || []).join(" "),
-      (c.laws || []).map(function (l) { return (l.name || "") + " " + (l.text || ""); }).join(" ")
+      (c.solution_steps || []).join(" ")
     ];
+    if (!excludeLaws) {
+      parts.push((c.laws || []).map(function (l) {
+        return (l.name || "") + " " + (l.text || "");
+      }).join(" "));
+    }
     return parts.join(" ").toLowerCase();
   }
 
@@ -221,6 +228,59 @@
    * 云函数接口不可用时走这里，行为必须和后端一致，否则「断网」会变成另一个产品。
    * 规则同步点：① 精确子串 ② 2 字片段近似 + 标题命中优先 ③ 无结果
    *            matchedLaws 取数 = 法条自身命中 ∪ 命中卡片关联的法条，上限 12 */
+
+  /* 通用片段表（Day 31 新增）：几乎每张卡摘要里都有的 2 字片段，对「讲的是什么事」
+   * 零信息量，不能让它们帮无关卡片凑够召回门槛。
+   * ⚠️ 维护纪律：functions/api/cards/cardsRepository.js 里有一份完全相同的副本（线上用）。
+   *    改任一边都必须同步改另一边，否则「断网」时搜索结果会和线上不一致。 */
+  var STOP_FRAGS = [
+    // 疑问与求助的通用尾巴
+    "怎么", "么办", "么赔", "么算", "么处", "么维", "么要", "么证", "么分", "么追",
+    "如何", "什么", "么时", "是否", "可否", "能否", "何办",
+    // 情态与能力
+    "可以", "能不", "不能", "该不", "该怎", "会不", "会不会",
+    // 咨询开场白
+    "请问", "请教", "咨询", "想问", "问问", "我想", "帮我",
+    // 时间与时态（不指向具体场景）
+    "现在", "目前", "已经", "以后", "之后", "最近", "一直",
+    // 泛指量词与指代
+    "一下", "这种", "这样", "那样", "那个", "这个"
+  ];
+
+  /* 近似检索第一步（与后端 relevancePlan 一致）：切片、去掉通用片段。
+   * 返回 null 表示不值得做近似检索（关键词只有 2 字，或全是「怎么办」这类通用词）。 */
+  function relevancePlan(kw) {
+    var frags = keywordFragments(kw).filter(function (f) {
+      return STOP_FRAGS.indexOf(f) === -1;
+    });
+    return frags.length < 2 ? null : frags;
+  }
+
+  /* 近似检索第二步（与后端 SQL 的 df/live 两个 CTE 一致）：
+   * 只保留「内容库里真实存在的片段」（文档频率 > 0）。
+   *
+   * 跨词粘连出的伪片段（「上老」「是吵」「我睡」「不着」）DF 一律是 0——它们永远匹配不上，
+   * 却会把门槛的分母撑大。按全部片段算的话，「楼上老是吵我睡不着」要凑够 3 个，
+   * 而噪音卡只有「楼上」「睡不」2 个能命中 → 真实的口语提问反而搜不到。 */
+  function liveFrags(frags, pool) {
+    var cores = pool.map(function (c) { return cardHaystack(c, true); });
+    return frags.filter(function (f) {
+      var lf = f.toLowerCase();
+      for (var i = 0; i < cores.length; i++) {
+        if (cores[i].indexOf(lf) !== -1) return true;
+      }
+      return false;
+    });
+  }
+
+  /* 召回门槛（与后端 `CASE WHEN lc.n <= 2 THEN 2 ELSE ceil(lc.n * 0.5) END` 一致）：
+   *   live < 2 → 不召回（只有 1 个内容库存在的片段，靠单个通用词凑数，判为无此场景）
+   *   live = 2 → 两个证据都要命中
+   *   live ≥ 3 → 长句按比例放宽到一半（伪片段已剔除，剩下的多半是真概念） */
+  function approxMinHits(liveCount) {
+    if (liveCount < 2) return -1;              // 永远不可能满足，等价于不召回
+    return liveCount <= 2 ? 2 : Math.ceil(liveCount * 0.5);
+  }
 
   /** 关键词切成「整串 + 所有相邻 2 字片段」，去重（与后端 keywordFragments 一致） */
   function keywordFragments(kw) {
@@ -246,7 +306,31 @@
     });
   }
 
-  function byDateDesc(a, b) { return (b.published_at || "").localeCompare(a.published_at || ""); }
+  /* 与后端 listPublished 的 `ORDER BY published_at DESC, slug` 逐项对齐。
+   * Day 31 修：原来只比 published_at、没有 slug 兜底，而 Day 30 扩容后
+   * 大量卡片是同一天发布的（published_at 相同）——此时前端沿用 data/cards.js 的书写顺序、
+   * 后端按 slug 升序，两边给出的首条就不一样（搜「借条」时最明显）。
+   * 加上 slug 这一级兜底后，同分同日期的结果前后端才真正一致。 */
+  function byDateDesc(a, b) {
+    return (b.published_at || "").localeCompare(a.published_at || "") ||
+      (a.slug < b.slug ? -1 : (a.slug > b.slug ? 1 : 0));
+  }
+
+  /* 精确检索的排序档位（与后端 cardsRepository 的 RANK_EXPR 逐档对齐）：
+   * 标题 1 > 标签 2 > 摘要/情景 3 > 应对步骤 4 > 仅法条原文 5。越小越靠前。
+   * 存在的理由见上面 cards.sort 的注释②——精确检索不看相关度、只按发布日期排，
+   * 会让「正文提了一嘴」的新卡压过「标题就是这个主题」的老卡。 */
+  function rankExact(c, low) {
+    var title = (c.title || "").toLowerCase();
+    var tags = (c.tags || []).join(" ").toLowerCase();
+    var body = ((c.summary || "") + " " + (c.scenario || "")).toLowerCase();
+    var steps = (c.solution_steps || []).join(" ").toLowerCase();
+    if (title.indexOf(low) !== -1) return 1;
+    if (tags.indexOf(low) !== -1) return 2;
+    if (body.indexOf(low) !== -1) return 3;
+    if (steps.indexOf(low) !== -1) return 4;
+    return 5;
+  }
 
   /** 本地三段式检索，返回 { cards, matchMode, matchedLaws } */
   function localSearch(keyword, categoryId) {
@@ -261,30 +345,63 @@
     var low = kw.toLowerCase();
     var mode = "exact";
     var cards = pool.filter(function (c) { return cardHaystack(c).indexOf(low) !== -1; });
+    // Day 31 修两处：
+    // ① 原来是 filter 完直接用，等于沿用 data/cards.js 的书写顺序（后端是 ORDER BY published_at），
+    //    同一个词前后端给的首条会不一样；
+    // ② 光按发布日期排也不够——搜「借条」时排第一的是「赌债、赌球输的钱」，
+    //    那张卡只是正文提了一嘴「借条」，却因发布最新压过了标题就叫「借条」的三张卡。
+    // 所以先按「关键词命中的字段含金量」分档（与后端 RANK_EXPR 同序），档内再按日期 + slug。
+    cards.sort(function (a, b) {
+      return (rankExact(a, low) - rankExact(b, low)) || byDateDesc(a, b);
+    });
 
     if (!cards.length) {
-      var frags = keywordFragments(kw);
+      // Day 31：与后端 listApprox 同规则 —— 先算门槛，再做字段加权打分。
+      // 旧写法 hits > 0（蹭到一个片段就召回）+ weight（片段全是 2 字，等于 hits×2 无区分度），
+      // 实测搜「搬家公司」能召回 24 张裁员卡。详见后端 cardsRepository.listApprox 注释。
+      var plan = relevancePlan(kw);
+      var live = plan ? liveFrags(plan, pool) : [];
+      var minHits = approxMinHits(live.length);
       var scored = [];
-      if (frags.length > 1) {
+      if (minHits > 0) {
         pool.forEach(function (c) {
-          var hay = cardHaystack(c);
-          var title = (c.title || "").toLowerCase();
-          var hits = 0, weight = 0, titleHits = 0;
-          frags.forEach(function (f) {
+          // 门槛只认「卡片自己写的内容」，法条原文不算——
+          // 实测：搜「装修合同」有 3 张卡靠消保法条文里的「装饰装修」凑够门槛被召回，
+          // 但那几张卡讲的是三包、瑕疵举证，跟装修毫无关系。
+          // 法条是通用法律文本，不代表这张卡的主题；它只参与排序，且权重最低。
+          //
+          // 安全性：精确检索（上面 cards 那条分支）用的 cardHaystack 仍包含法条全文，
+          // 所以「照着法条原文搜」不会受影响，只有近似兜底这一层收紧了。
+          var hayCore = cardHaystack(c, true);
+          var fTitle = (c.title || "").toLowerCase();
+          var fTags = (c.tags || []).join(" ").toLowerCase();
+          var fBody = ((c.summary || "") + " " + (c.scenario || "")).toLowerCase();
+          var fSteps = (c.solution_steps || []).join(" ").toLowerCase();
+          var fLaws = (c.laws || []).map(function (l) {
+            return (l.name || "") + " " + (l.text || "");
+          }).join(" ").toLowerCase();
+          var hits = 0, titleHits = 0, tagsHits = 0, bodyHits = 0, stepsHits = 0, lawHits = 0;
+          live.forEach(function (f) {
             var lf = f.toLowerCase();
-            if (hay.indexOf(lf) === -1) return;
-            hits++;
-            weight += f.length;
-            if (title.indexOf(lf) !== -1) titleHits++;
+            // 各字段独立计数（与后端 count(*) FILTER 一致：同一片段可在多个字段各计一次）
+            if (hayCore.indexOf(lf) !== -1) hits++;
+            if (fTitle.indexOf(lf) !== -1) titleHits++;
+            if (fTags.indexOf(lf) !== -1) tagsHits++;
+            if (fBody.indexOf(lf) !== -1) bodyHits++;
+            if (fSteps.indexOf(lf) !== -1) stepsHits++;
+            if (fLaws.indexOf(lf) !== -1) lawHits++;
           });
-          if (hits > 0) scored.push({ c: c, hits: hits, weight: weight, titleHits: titleHits });
+          if (hits >= minHits) {
+            scored.push({
+              c: c, hits: hits,
+              score: titleHits * 10 + tagsHits * 6 + bodyHits * 3 + stepsHits * 2 + lawHits
+            });
+          }
         });
       }
-      // 排序与后端 ORDER BY 对齐：标题命中数 > 命中片段总字数 > 命中片段数 > 发布时间
+      // 排序与后端 ORDER BY 对齐：字段加权分 > live 片段命中数 > 发布时间 > slug
       scored.sort(function (a, b) {
-        return (b.titleHits - a.titleHits) || (b.weight - a.weight) || (b.hits - a.hits) ||
-          (b.c.published_at || "").localeCompare(a.c.published_at || "") ||
-          (a.c.slug < b.c.slug ? -1 : 1);
+        return (b.score - a.score) || (b.hits - a.hits) || byDateDesc(a.c, b.c);
       });
       cards = scored.map(function (x) { return x.c; });
       mode = cards.length ? "fuzzy" : "none";
