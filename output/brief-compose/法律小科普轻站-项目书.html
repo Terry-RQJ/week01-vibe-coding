@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="docx-page-size" content="A4">
+<title>法律小科普轻站 · 项目书</title>
+<style>
+  /* 页面级规则（doc-formatter §2.5：inline 管元素视觉，<style> 管页面级规则） */
+  @page { size: A4; margin: 2.2cm 2.4cm; }
+  body { font-family: SimSun, serif; font-size: 12pt; color: #333333; }
+  p { line-height: 1.7; }
+  table { border-collapse: collapse; width: 100%; }
+</style>
+</head>
+<body>
+
+<h1 style="font-family:SimHei;font-size:20pt;color:#1E40AF;text-align:center;margin:0 0 6pt 0;">法律小科普轻站</h1>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;text-align:center;margin:0 0 4pt 0;">让一个普通人 3 分钟读懂一个生活里的法律常识</p>
+<p style="font-family:SimSun;font-size:10pt;color:#666666;text-align:center;margin:0 0 18pt 0;">Vibe Coding 学习项目 · 作者 Terry · 2026 年 10 月</p>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">一、项目简介</h2>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">法律小科普轻站是一个面向普通人的公益法律常识站。它的定位只有一句话：让一个普通人在「撞上事」的瞬间，能 3 分钟搞懂「这事归哪条法律管、我现在该怎么做」。</p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">站内现有 124 张情境卡片、267 条法条引用，覆盖劳动、消费、借贷、婚姻家庭、交通、邻里与名誉六大类高频生活场景。每张卡片只讲清四件事：这是什么情形、对应哪条法律、我现在该怎么做、还能延伸了解什么——不讲空话，不堆术语。</p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">技术上采用原生 HTML/CSS/JS 多页面 + 腾讯云 CloudBase 云函数 + PostgreSQL。内容数据与数据库同源、由脚本统一生成；接口不可用时自动回落到本地静态数据，断网状态下依然可以正常浏览。</p>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">二、目标用户与落地场景</h2>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">给不懂法、不愿装 App、出了事只想马上知道该怎么办的中国大陆普通人——在遇到房东不退押金、公司不给加班费、朋友借钱不还这类日常纠纷的当下，用手机搜一句大白话就能拿到可执行的下一步。</p>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">三、项目差异化亮点</h2>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;"><strong style="font-family:SimHei;">最强的一点：搜索是照着「人怎么说话」设计的，不是照着法律术语设计的。</strong></p>
+
+<p style="font-family:SimHei;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 4pt 0;">1. 口语直达，不需要先懂法言法语</p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">搜「押金」「加班费」「楼上太吵」就能直接命中，不必先知道这些事在法律上叫「租赁合同」「劳动报酬」「相邻关系」。每张卡片都额外配置口语别名标签，并用 142 个真实搜索词做覆盖率回归，实测覆盖率 100%、无结果 0。</p>
+
+<p style="font-family:SimHei;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 4pt 0;">2. 宁缺毋滥，把「搜不到」和「搜错」区别对待</p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">内容库里确实没有的场景（比如「搬家公司」），宁可返回空态推荐，也不硬凑几十条不相关的结果。这是一次刻意的取舍：搜不到大不了换个词再试，搜出一屏垃圾却会让人当场判定这个站不靠谱。上线后实测，15 个「内容库没有的场景」词全部干净地落到空态推荐。</p>
+
+<p style="font-family:SimHei;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 4pt 0;">3. 法条直达，依据可回溯到官方源</p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 8pt 0;">搜索结果可直接带出对应法条原文与官方出处（中国人大网、中国政府网、最高人民法院），一键跳转到原始条文核验，不必先读完一堆科普再找依据。每条法条均标注核验日期，另有独立的「法条速查」页支持按法律名检索。</p>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">四、项目链接</h2>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 3pt 0;"><strong style="font-family:SimHei;">在线站点</strong></p>
+<p style="font-family:SimSun;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 9pt 0;"><a href="https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/">https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/</a></p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 3pt 0;"><strong style="font-family:SimHei;">法条速查页</strong></p>
+<p style="font-family:SimSun;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 9pt 0;"><a href="https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/laws.html">https://rqj-2006-d0gl1ael531a243a1-1497985433.tcloudbaseapp.com/laws.html</a></p>
+<p style="font-family:SimSun;font-size:12pt;color:#333333;line-height:1.7;margin:0 0 3pt 0;"><strong style="font-family:SimHei;">源代码仓库</strong></p>
+<p style="font-family:SimSun;font-size:12pt;color:#1E40AF;line-height:1.7;margin:0 0 9pt 0;"><a href="https://github.com/Terry-RQJ/week01-vibe-coding">https://github.com/Terry-RQJ/week01-vibe-coding</a></p>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">五、数据一览</h2>
+<table style="width:100%;border-collapse:collapse;margin:0 0 8pt 0;">
+<tr>
+<td style="font-family:SimHei;font-size:12pt;color:#FFFFFF;background:#1E40AF;border:0.5pt solid #1E40AF;padding:6pt 8pt;width:34%;">指标</td>
+<td style="font-family:SimHei;font-size:12pt;color:#FFFFFF;background:#1E40AF;border:0.5pt solid #1E40AF;padding:6pt 8pt;">数量</td>
+</tr>
+<tr>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">情境卡片</td>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">124 张（六大类）</td>
+</tr>
+<tr>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">法条引用</td>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">267 条（逐条核对官方来源）</td>
+</tr>
+<tr>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">覆盖分类</td>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">劳动 20 · 消费 20 · 借贷 20 · 婚姻家庭 21 · 交通 20 · 邻里名誉 21</td>
+</tr>
+<tr>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">搜索覆盖率</td>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">142 个真实搜索词，覆盖率 100%</td>
+</tr>
+<tr>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">技术栈</td>
+<td style="font-family:SimSun;font-size:12pt;color:#333333;border:0.5pt solid #CCCCCC;padding:6pt 8pt;">原生 HTML/CSS/JS + CloudBase 云函数 + PostgreSQL</td>
+</tr>
+</table>
+
+<h2 style="font-family:SimHei;font-size:14pt;color:#1E40AF;margin:16pt 0 6pt 0;">免责声明</h2>
+<p style="font-family:SimSun;font-size:10.5pt;color:#666666;line-height:1.7;margin:0 0 6pt 0;">本站为个人学习项目，内容由 AI 起草、经人工复核后发布，<strong style="font-family:SimHei;">不构成法律咨询，也不构成对个案的法律意见</strong>。遇到具体问题请咨询执业律师，或拨打免费法律服务热线 12348；紧急人身安全事件请立即拨打 110。法条内容以官方来源为准。</p>
+
+</body>
+</html>

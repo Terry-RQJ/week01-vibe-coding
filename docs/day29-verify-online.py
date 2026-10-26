@@ -72,7 +72,38 @@ print("=" * 78)
 
 j, st, _ = search(None, None, 50)
 cards = (j or {}).get("data") or []
-TOTAL_EXPECT = 122          # Day 31 现状（Day 30 扩容后 121，新增房产加名卡后 122）
+
+
+def _expected_total():
+    """从 data/cards.js 读卡片真数，而不是在本脚本里写死。
+
+    写死过一次，代价是每次加卡都要手动改这里：Day 30（121）、Day 31（122）、
+    Day 33（124）各改一遍，漏改就误报 5 项「失败」。内容源是 data/cards.js
+    （由 db/seed-content.py 生成），那里才是唯一事实。
+
+    ⚠️ 不用正则抠 `window.LAW_CARDS = [...]`：这个文件的**结尾**还挂了
+    `window.LAW_CATEGORIES = [...]`，贪婪/非贪婪都容易截错，而且 JSON 里存在
+    中文引号与转义，正则匹配脆。改用 node 直接执行取长度；node 不在时退回 124
+    并打印原因，避免静默变成「永远碰巧通过」。
+    """
+    import os
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    js = os.path.join(root, "data", "cards.js")
+    code = ("const vm=require('vm'),fs=require('fs');const sb={window:{}};"
+            "vm.createContext(sb);vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),sb);"
+            "process.stdout.write(String(sb.window.LAW_CARDS.length));")
+    try:
+        out = subprocess.run(["node", "-e", code, js], capture_output=True, text=True, timeout=30)
+        if out.returncode == 0 and out.stdout.strip().isdigit():
+            return int(out.stdout.strip())
+        print("  （node 读取 data/cards.js 失败，回退默认值 124：%s）" % (out.stderr.strip()[:200],))
+    except Exception as e:
+        print("  （读取 data/cards.js 异常，回退默认值 124：%s）" % e)
+    return 124
+
+
+TOTAL_EXPECT = _expected_total()
 # 注意 limit=50 的语义：data 最多给 50 条，完整总数在 meta.total 里。
 # 旧版把 data 条数当总数断言（Day 29 时总共才 24 张 < 50，恰好没暴露这个错误）。
 check("无筛选：data 受 limit 截断为 50、meta.total = %d" % TOTAL_EXPECT,
