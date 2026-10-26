@@ -135,6 +135,15 @@ def main():
         print("seed.sql ->", "OK" if ok else "FAIL")
         print(out[-800:] if not ok else out[:200])
         sys.exit(0 if ok else 1)
+    if mode == "sql":
+        # 诊断用（Day 36 新增）：直接跑一条 SELECT，排查线上搜索为什么命中某张卡。
+        # 只做只读查询，别在这里跑写语句——写操作走 seed/schema。
+        if len(sys.argv) < 3:
+            print("用法: python db/exec.py sql \"SELECT ...\"")
+            sys.exit(2)
+        ok, out = tcb_sql(sys.argv[2])
+        print(out if ok else "FAIL: " + out)
+        sys.exit(0 if ok else 1)
     if mode == "verify":
         queries = [
             ("cards 行数", "SELECT COUNT(*) AS cards FROM cards"),
