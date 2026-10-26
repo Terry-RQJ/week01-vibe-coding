@@ -861,14 +861,19 @@ a:hover { text-decoration: underline; }
   border-radius: 999px;
 }
 
-/* ---------- 顶导三链接：移动端不让搜索框挤压 ---------- */
+/* ---------- 顶导链接：移动端不让搜索框挤压 ---------- */
 @media (max-width: 640px) {
   .site-header .container {
     flex-wrap: wrap;
     gap: var(--space-2);
   }
   .search-box { order: 5; flex-basis: 100%; max-width: none; }
-  .nav-link { padding: 6px 8px; font-size: 13px; }
+  /* Day 32：导航从 4 项增到 5 项（加了「关于」）。375px 下 brand(约 150px) +
+     5×56px + 4×8px gap 约 462px，会溢出 → 收紧到 5px/11px 间距并允许换行。
+     brand 独占一行不划算，改用 flex-basis 让步：链接可折到第二行，不横向撑破。 */
+  .site-header .container { gap: 4px; }
+  .brand { font-size: var(--font-size-base); margin-right: var(--space-2); }
+  .nav-link { padding: 6px 6px; font-size: 12.5px; }
 }
 
 /* ========== Day 20：检查台（check.html）========== */
@@ -1014,4 +1019,86 @@ a:hover { text-decoration: underline; }
 .law-hl { background: #FFF2B8; padding: 0 2px; border-radius: 2px; }
 @media (max-width: 640px) {
   .law-item-head { flex-direction: column; gap: 4px; }
+}
+
+/* ==================== Day 32：关于页（about.html，合规 F7 / U-04）==================== */
+.about-card {
+  background: var(--color-card, #fff);
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid rgba(44, 90, 61, 0.22);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+  padding: var(--space-4, 16px);
+  margin-bottom: var(--space-4, 16px);
+}
+/* 免责声明：用警示色描边，让它在视觉上「抢眼」，这是合规项不能藏在正文里 */
+.about-card--warn {
+  background: var(--color-warn-bg, #FFF8E6);
+  border-color: var(--color-warn-fg, #9A6B00);
+  border-left-width: 4px;
+}
+.about-card--urgent {
+  border-left: 4px solid var(--color-ink-red, #B3261E);
+}
+.about-h2 {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: var(--font-size-lg, 17px);
+  color: var(--color-primary-dark, #1B3524);
+  font-weight: 600;
+}
+.about-card--warn .about-h2 { color: var(--color-warn-fg, #9A6B00); }
+.about-p {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: var(--font-size-base, 15px);
+  line-height: 1.9;
+  color: var(--color-fg, #1F2A22);
+}
+.about-p:last-child { margin-bottom: 0; }
+.about-p--note {
+  font-size: var(--font-size-sm, 14px);
+  color: var(--color-fg-soft, #5A6B5E);
+  line-height: 1.8;
+}
+.about-p a, .about-list a { color: var(--color-primary, #2C5A3D); }
+.about-list {
+  margin: 0;
+  padding-left: 1.35em;
+  font-size: var(--font-size-base, 15px);
+  line-height: 1.9;
+  color: var(--color-fg, #1F2A22);
+}
+.about-list li { margin-bottom: var(--space-2, 8px); }
+.about-list li:last-child { margin-bottom: 0; }
+.about-steps {
+  margin: 0 0 var(--space-3, 12px);
+  padding-left: 1.35em;
+  font-size: var(--font-size-base, 15px);
+  line-height: 1.9;
+  color: var(--color-fg, #1F2A22);
+}
+.about-steps li { margin-bottom: var(--space-2, 8px); }
+/* 紧急电话表：手机端两列会挤，直接改上下排 */
+.about-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base, 15px);
+  line-height: 1.8;
+}
+.about-table th, .about-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(44, 90, 61, 0.16);
+}
+.about-table th {
+  width: 34%;
+  font-weight: 600;
+  color: var(--color-primary-dark, #1B3524);
+}
+.about-table td strong { color: var(--color-ink-red, #B3261E); }
+.about-table tr:last-child th, .about-table tr:last-child td { border-bottom: none; }
+.about-table + .about-p--note { margin-top: var(--space-3, 12px); }
+@media (max-width: 640px) {
+  .about-table th, .about-table td { display: block; width: auto; padding: 10px 0; }
+  .about-table th { padding-bottom: 2px; border-bottom: none; }
+  .about-table td { padding-top: 0; }
 }
