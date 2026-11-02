@@ -80,6 +80,7 @@
         <input type="search" id="card-search" placeholder="搜『押金』『加班费』，长句也行，还能直接搜法条如『劳动合同法』…" aria-label="搜索情形与法条（支持关键词、长句和法条名）" autocomplete="off" enterkeyhint="search">
       </div>
       <a href="./index.html" class="nav-link" aria-label="首页" aria-current="page">首页</a>
+      <a href="./news.html" class="nav-link" aria-label="法律热点">法律热点</a>
       <a href="./laws.html" class="nav-link" aria-label="法条速查">法条速查</a>
       <a href="./bookmarks.html" class="nav-link" aria-label="我的收藏">我的收藏</a>
       <a href="./history.html" class="nav-link" aria-label="浏览记录">浏览记录</a>
@@ -197,6 +198,17 @@
           <li><button type="button" class="chip chip-traffic" data-cat="traffic" aria-pressed="false">交通类</button></li>
           <li><button type="button" class="chip chip-neighbor" data-cat="neighbor" aria-pressed="false">邻里 / 名誉类</button></li>
         </ul>
+      </section>
+
+      <!-- Day 37：法律热点入口（news.html 展示每日官方渠道精选，人工确认后上线） -->
+      <section class="categories" aria-labelledby="news-entry-h">
+        <a href="./news.html" style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); text-decoration: none; padding: var(--space-4); border: 1.5px dashed var(--bamboo-mid, #4A8A5C); border-radius: 16px; background: rgba(74,138,92,0.06);">
+          <span>
+            <strong style="font-size: var(--font-size-lg); color: var(--bamboo-dark, #1B3524);">📰 今日法律热点</strong>
+            <span style="display: block; margin-top: 4px; font-size: var(--font-size-sm); color: var(--bamboo-dark, #1B3534);">每天看看新规与典型案例，都来自官方渠道，点开就能跳到站内解读。</span>
+          </span>
+          <span class="chip" aria-hidden="true">去看看 →</span>
+        </a>
       </section>
 
       <section aria-labelledby="card-h" style="padding: var(--space-4) 0 var(--space-7);">

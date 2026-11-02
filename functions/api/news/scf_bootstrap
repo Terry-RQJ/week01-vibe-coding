@@ -1,0 +1,5 @@
+#!/bin/bash
+# CloudBase HTTP 函数启动脚本
+# 在容器内启动 Node HTTP 服务器监听 9000 端口
+cd "$(dirname "$0")"
+exec node bootstrap.js

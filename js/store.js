@@ -611,6 +611,14 @@
       });
     },
 
+    /** Day 37：法律热点新闻（GET /api/news，只含已确认上线条目）
+     *  失败回落 window.LAW_NEWS（data/news.js，由发布脚本同步），断网也能看。 */
+    getNews: function (limit) {
+      return apiOrLocal("/news?limit=" + (limit || 7), function () {
+        return fakeFetch((window.LAW_NEWS || []).slice(0, limit || 7));
+      });
+    },
+
     /** 分类目录（Day 17：真 API 聚合 count，desc 仍是静态文案） */
     listCategories: function () {
       return apiOrLocal("/categories", function () {

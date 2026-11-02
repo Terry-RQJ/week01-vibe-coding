@@ -12,6 +12,7 @@
 -- 分类不建表：6 个分类是固定常量（见 api-contract.md §1.3），
 -- count 由 cards.category_id 聚合得出，避免冗余与不一致。
 
+DROP TABLE IF EXISTS news;   -- Day 37：news 有外键指向 cards，必须先删（注意：重跑 schema 会清空新闻数据，含已上线条目）
 DROP TABLE IF EXISTS laws;
 DROP TABLE IF EXISTS cards;
 
@@ -84,3 +85,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_favorites_active
 
 -- 列表查询走 (client_id, is_deleted)，建个复合索引
 CREATE INDEX IF NOT EXISTS idx_favorites_client_deleted ON favorites(client_id, is_deleted);
+
+-- ── Day 37 追加：法律热点新闻表（GET /api/news）──
+-- 设计（与用户对齐）：AI 每天抓官方权威源生成「候选」（status='candidate'），
+-- 用户在本地维护页 admin-news.html（gitignore，不进仓库不进托管）逐条确认，
+-- 确认后置为 published，线上接口只返回 published —— 未确认的候选访客看不见。
+-- related_card_slug 挂站内情境卡（可为空：不是每条新闻都有关联卡）。
+CREATE TABLE IF NOT EXISTS news (
+    id                BIGSERIAL PRIMARY KEY,
+    news_date         DATE         NOT NULL,                -- 新闻所属日期（展示用，按它倒序）
+    title             VARCHAR(255) NOT NULL,                -- 标题
+    summary           TEXT         NOT NULL,                -- 一两句话摘要
+    source_name       VARCHAR(128) NOT NULL,                -- 来源名（如「中国普法网」）
+    source_url        VARCHAR(512),                         -- 原文链接，可空
+    related_card_slug VARCHAR(64)  REFERENCES cards(slug) ON DELETE SET NULL, -- 关联情境卡，卡删则置空
+    status            VARCHAR(16)  NOT NULL DEFAULT 'candidate'
+                      CHECK (status IN ('candidate', 'published', 'offline')),
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    published_at      TIMESTAMPTZ                               -- 确认上线时间（可空=还没上线）
+);
+CREATE INDEX IF NOT EXISTS idx_news_status_date ON news(status, news_date DESC);
+GRANT SELECT ON news TO cloudbase_read_only_user_postgres_ebc42q2s;

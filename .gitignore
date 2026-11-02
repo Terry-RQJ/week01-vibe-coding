@@ -44,3 +44,9 @@ docs/screenshots/*.png
 #    是压缩优化前的原始稿。所以单独列在这里忽略，而不是并进上面 /day*.png 的通配。
 #    真要清理素材时记得单独看它一眼，别连它的来历一起丢了。
 /panda-judge-orig-backup.png
+
+# ===== Day 37：新闻维护相关（本地专用，不上传）=====
+# admin-news.html 是热点新闻的本地确认页：会粘贴 CB_API_KEY（存 localStorage），
+# 绝不能进仓库或托管目录；.tmp-* 通配忽略临时脚本/密钥/配置备份。
+/admin-news.html
+.tmp-*
