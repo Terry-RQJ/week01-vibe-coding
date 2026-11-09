@@ -35,7 +35,11 @@
           每天自动从官方权威渠道（司法部智慧普法平台、最高人民法院、全国人大等）抓取新规与典型案例，
           并写清「这跟你有什么关系」——不是转发新闻，是告诉你遇到这事该怎么办。
         </p>
-        <div id="news-status" style="margin-bottom: var(--space-3);"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3);">
+          <div id="news-status"></div>
+          <button id="news-refresh" type="button"
+            style="border: 1.5px solid #1F4A3A; background: #F7F3E8; color: #1F4A3A; font-size: var(--font-size-sm); font-weight: bold; padding: 8px 18px; border-radius: 999px; cursor: pointer;">🔄 立即更新热点</button>
+        </div>
 
         <div id="news-area" style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
           <!-- 加载 / 空 / 错误 / 分组列表由 js/page-news.js 渲染 -->

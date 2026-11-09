@@ -139,6 +139,40 @@
   else area.innerHTML = '<div class="state-box" role="status"><span class="badge">加载中…</span></div>';
 
   // 首页只要最近一周，热点页给全量（取 30 条，约一个月）
-  Store.getNewsFull ? Store.getNewsFull(30).then(render, renderError)
-                    : Store.getNews(30).then(render, renderError);
+  // 注意 getNewsFull 返回整个信封 { ok, data, meta }，必须拆开再给 render
+  // （Day 44 初版漏了这一步，render 收到信封当条目列表 → 永远显示「还没有上线的热点」）
+  var loader = Store.getNewsFull ? Store.getNewsFull(30) : Store.getNews(30);
+  loader.then(function (j) {
+    if (j && j.data) render(j.data, j.meta);
+    else render(j, null);              // 回落路径直接给数组
+  }, renderError);
+
+  /* 手动刷新按钮：带时间戳强制绕过 CDN/浏览器缓存重拉，并重渲染。
+   * 它刷新的是「显示」，不是内容生产——新内容由每天 09:30 的定时任务产出。 */
+  var refreshBtn = document.getElementById("news-refresh");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", function () {
+      var btn = refreshBtn;
+      btn.disabled = true;
+      btn.textContent = "刷新中…";
+      fetch(API_BASE_CACHEBUST(), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          btn.disabled = false;
+          btn.textContent = "🔄 立即更新热点";
+          if (j && j.ok) {
+            render(j.data, j.meta);
+            btn.textContent = "已更新 · 共 " + (j.data || []).length + " 条";
+            setTimeout(function () { btn.textContent = "🔄 立即更新热点"; }, 2500);
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          btn.textContent = "刷新失败，再点一次";
+        });
+    });
+  }
+  function API_BASE_CACHEBUST() {
+    return "https://rqj-2006-d0gl1ael531a243a1-1497985433.ap-shanghai.app.tcloudbase.com/api/news?limit=30&t=" + Date.now();
+  }
 })();
