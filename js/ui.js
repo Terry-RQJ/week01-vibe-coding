@@ -553,4 +553,32 @@
   }
 
   loadCards("success");
+
+  /* ---------- Day 44：首页「今日法律热点」预览 ----------
+   * 只取 2 条，原因是首页主任务是「找我的情形」；热点在这里是「顺手看到」，
+   * 抢走首屏注意力反而违背 PRD（3 分钟内读懂一件小事）。
+   * 每条都带「这跟你有什么关系」——没解读的新闻不如不看。 */
+  var homeNews = document.getElementById("home-news");
+  if (homeNews) {
+    Store.getNews(2).then(function (items) {
+      if (!items || !items.length) {
+        homeNews.innerHTML = '<p style="margin: 0; font-size: var(--font-size-sm); color: #7A8A7E;">今天的推送还在路上，稍后再来看看。</p>';
+        return;
+      }
+      homeNews.innerHTML = items.map(function (n) {
+        var t = UI.esc(n.title);
+        if (n.sourceUrl) {
+          t = '<a href="' + UI.esc(n.sourceUrl) + '" target="_blank" rel="noopener noreferrer" ' +
+              'style="color: inherit; text-decoration: none;">' + t + " ↗</a>";
+        }
+        return '<article style="padding: var(--space-3); background: #fff; border: 1px solid rgba(31,74,58,0.12); border-radius: 12px;">' +
+            '<h3 style="margin: 0 0 6px; font-size: var(--font-size-base); line-height: 1.45;">' + t + "</h3>" +
+            '<p style="margin: 0; font-size: var(--font-size-sm); line-height: 1.7; color: var(--bamboo-dark);">' +
+              UI.esc(n.takeaway || n.summary) + "</p>" +
+          "</article>";
+      }).join("");
+    }).catch(function () {
+      homeNews.innerHTML = '<p style="margin: 0; font-size: var(--font-size-sm); color: #7A8A7E;">热点暂时刷不出来。</p>';
+    });
+  }
 })();

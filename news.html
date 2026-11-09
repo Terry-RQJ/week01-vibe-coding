@@ -30,14 +30,15 @@
       </nav>
 
       <section aria-labelledby="news-h" style="padding-top: var(--space-3);">
-        <h1 id="news-h" class="section-title">法律热点</h1>
-        <p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-3);">
-          每天更新的法律新闻与新规速递，只收录官方权威渠道（司法部智慧普法平台、最高人民法院等）。
-          看到和自己有关的事，点「去看站内解读」直接跳到对应情境卡。
+        <h1 id="news-h" class="section-title">每日法律热点</h1>
+        <p style="font-size: var(--font-size-sm); color: var(--bamboo-dark); margin-bottom: var(--space-2); line-height: 1.75;">
+          每天自动从官方权威渠道（司法部智慧普法平台、最高人民法院、全国人大等）抓取新规与典型案例，
+          并写清「这跟你有什么关系」——不是转发新闻，是告诉你遇到这事该怎么办。
         </p>
+        <div id="news-status" style="margin-bottom: var(--space-3);"></div>
 
         <div id="news-area" style="display: grid; grid-template-columns: 1fr; gap: var(--space-4);">
-          <!-- 加载 / 空 / 错误 / 列表四态由 js/page-news.js 渲染 -->
+          <!-- 加载 / 空 / 错误 / 分组列表由 js/page-news.js 渲染 -->
         </div>
       </section>
     </div>

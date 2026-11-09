@@ -619,6 +619,17 @@
       });
     },
 
+    /** Day 44：同上但保留信封 { data, meta }——meta.lastRun 是抓取台账，
+     *  热点页要用它显示「今天已更新 / 上次更新于 X」，避免假装一直在更新。 */
+    getNewsFull: function (limit) {
+      return apiOrLocalFull("/news?limit=" + (limit || 7), function () {
+        return fakeFetch({
+          data: (window.LAW_NEWS || []).slice(0, limit || 7),
+          meta: { total: (window.LAW_NEWS || []).length, limit: limit || 7, lastRun: null }
+        });
+      });
+    },
+
     /** 分类目录（Day 17：真 API 聚合 count，desc 仍是静态文案） */
     listCategories: function () {
       return apiOrLocal("/categories", function () {

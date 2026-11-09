@@ -106,3 +106,24 @@ CREATE TABLE IF NOT EXISTS news (
 );
 CREATE INDEX IF NOT EXISTS idx_news_status_date ON news(status, news_date DESC);
 GRANT SELECT ON news TO cloudbase_read_only_user_postgres_ebc42q2s;
+
+-- ── Day 44 追加：热点自动化 ──
+-- takeaway：面向普通人的「这跟你有啥关系」解读（2–3 句，AI 撰写 + 规则校验，不写结论性法律意见）
+-- 唯一索引：(news_date, title) 去重——每天自动抓取同一篇新闻多次时只留一条
+ALTER TABLE news ADD COLUMN IF NOT EXISTS takeaway TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_news_title_date ON news(news_date, title);
+
+-- news_runs：每日抓取台账（哪天抓了、抓到几条、入库几条、成功与否）。
+-- 有了它，前端「今天更新于」和「昨天没抓到」能被如实说清，而不是假装一直在跑。
+CREATE TABLE IF NOT EXISTS news_runs (
+    id         BIGSERIAL PRIMARY KEY,
+    run_date   DATE        NOT NULL,                -- 抓取所属日期
+    source     VARCHAR(64),                        -- 抓取渠道（maxsearch / manual）
+    found      INTEGER     NOT NULL DEFAULT 0,     -- 抓到几条
+    added      INTEGER     NOT NULL DEFAULT 0,     -- 新入库几条
+    status     VARCHAR(16) NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'partial', 'failed')),
+    note       TEXT,                               -- 失败原因或备注
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_news_runs_date ON news_runs(run_date DESC);
+GRANT SELECT ON news_runs TO cloudbase_read_only_user_postgres_ebc42q2s;

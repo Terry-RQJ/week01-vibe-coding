@@ -50,7 +50,16 @@ async function listNews(q) {
   }
 
   const rows = await newsRepository.listPublished(limit);
-  return json(200, { ok: true, data: rows, meta: { total: rows.length, limit: limit } });
+  // Day 44：带上「最近一次抓取」的台账，前端如实显示更新于哪天（抓挂时能看出来）
+  let lastRun = null;
+  try {
+    const r = await newsRepository.latestRun();
+    lastRun = (r && r[0]) || null;
+  } catch (e) {
+    // 台账表还没建（老环境）不影响主接口
+    lastRun = null;
+  }
+  return json(200, { ok: true, data: rows, meta: { total: rows.length, limit: limit, lastRun: lastRun } });
 }
 
 // ---------- 入口 ----------
