@@ -27,6 +27,26 @@
     if (demo === "error")   { UI.renderError(area, render); return; }
 
     var slug = getSlug();
+
+    /* Day 44：返回箭头智能指向——
+     * ① URL 带 from=news（热点页跳来的）→ 回热点页
+     * ② 来源页本身就是热点页（直接输网址进来的极少）→ 回热点页
+     * ③ 有浏览历史 → history.back()（回真正来时的页面，收藏页/搜索结果都能回）
+     * ④ 兜底 → 首页 */
+    (function () {
+      var back = document.getElementById("card-back");
+      if (!back) return;
+      var m = location.search.match(/[?&]from=([^&]*)/);
+      var from = m ? decodeURIComponent(m[1]) : "";
+      if (!from && document.referrer && /news\.html/.test(document.referrer)) from = "news";
+      if (from === "news") {
+        back.href = "./news.html";
+        back.textContent = "← 返回热点";
+      } else if (history.length > 1) {
+        back.href = "javascript:void(0)";
+        back.addEventListener("click", function (e) { e.preventDefault(); history.back(); });
+      }
+    })();
     if (!slug) {
       UI.renderEmpty(area, { kind: "empty-card" });
       return;

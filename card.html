@@ -23,8 +23,11 @@
 
   <main style="position: relative; z-index: 1;">
     <div class="container">
-      <!-- 面包屑：当前位置 + 回到首页的链接 -->
+      <!-- Day 44：左上角返回箭头——从热点页进来回热点页，其他情况浏览器后退，兜底回首页 -->
       <nav class="breadcrumbs" aria-label="面包屑导航">
+        <a id="card-back" href="./index.html" class="chip"
+           style="text-decoration: none; font-weight: bold; padding: 6px 16px;"
+           aria-label="返回上一页">← 返回</a>
         <a href="./index.html">首页</a>
         <span aria-hidden="true">/</span>
         <span aria-current="page">情形详情</span>

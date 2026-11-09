@@ -74,7 +74,7 @@
         "</div>"
       : "";
     var related = n.relatedCardSlug
-      ? '<a class="chip" href="./card.html?slug=' + encodeURIComponent(n.relatedCardSlug) + '" ' +
+      ? '<a class="chip" href="./card.html?slug=' + encodeURIComponent(n.relatedCardSlug) + '&from=news" ' +
         'style="align-self: flex-start; text-decoration: none;">看站内解读 →</a>'
       : "";
     var source = n.sourceUrl

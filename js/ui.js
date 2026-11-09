@@ -560,7 +560,7 @@
    * 每条都带「这跟你有什么关系」——没解读的新闻不如不看。 */
   var homeNews = document.getElementById("home-news");
   if (homeNews) {
-    Store.getNews(2).then(function (items) {
+    Store.getNews(3).then(function (items) {
       if (!items || !items.length) {
         homeNews.innerHTML = '<p style="margin: 0; font-size: var(--font-size-sm); color: #7A8A7E;">今天的推送还在路上，稍后再来看看。</p>';
         return;
